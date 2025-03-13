@@ -1,0 +1,4 @@
+#ifndef AUTONOMOUS_TASKS_HPP
+#define AUTONOMOUS_TASKS_HPP
+
+#endif // #ifndef AUTONOMOUS_TASKS_HPP
