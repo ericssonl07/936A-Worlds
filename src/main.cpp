@@ -1,28 +1,46 @@
-/*----------------------------------------------------------------------------*/
-/*                                                                            */
-/*    Module:       main.cpp                                                  */
-/*    Author:       ericssonlin                                               */
-/*    Created:      3/13/2025, 3:58:14 PM                                     */
-/*    Description:  V5 project                                                */
-/*                                                                            */
-/*----------------------------------------------------------------------------*/
-#include "vex.h"
+#include <definitions.hpp>
+#include <devices.hpp>
+#include <threads.hpp>
 
-using namespace vex;
-
-// A global instance of vex::brain used for printing to the V5 brain screen
-vex::brain       Brain;
-
-// define your global instances of motors and other devices here
-
+vex::thread CHASSIS(chassis_thread);
+vex::thread LADYBROWN(lb_thread);
+vex::thread MOGO(mogo_thread);
+vex::thread ODOM(odom_thread);
 
 int main() {
+    // Initializing Robot Configuration. DO NOT REMOVE!
+    imu.calibrate();
+    mogo_color.setLightPower(100);
+    mogo_color.setLight(vex::ledState::on);
+    mogo_color.objectDetectThreshold(254);
 
-    Brain.Screen.printAt( 10, 50, "Hello V5" );
+    while (imu.isCalibrating()) {
+        vex::this_thread::sleep_for(10);
+    }
+    
+    bool prev_base_pto_state = false;
    
     while(1) {
+        // drivetrain movement
+        g_right_power = DRIVE_AXIS_FORWARD - DRIVE_AXIS_TURN;
+        g_left_power = DRIVE_AXIS_FORWARD + DRIVE_AXIS_TURN;
+
+
+        if (PTO_BIND != prev_base_pto_state && prev_base_pto_state != 1){
+            g_toggle_base_pto = !g_toggle_base_pto;
+        }
+        prev_base_pto_state = PTO_BIND;
+
+        // ladybrown movement
+        if (LB_RAISE_BIND) {
+            g_lb_power = 100;
+        } else if (LB_LOWER_BIND) {
+            g_lb_power = -100;
+        } else {
+            g_lb_power = 0;
+        }
         
         // Allow other tasks to run
-        this_thread::sleep_for(10);
+        vex::this_thread::sleep_for(10);
     }
 }
