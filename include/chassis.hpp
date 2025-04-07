@@ -19,6 +19,7 @@ class Chassis {
     vex::rotation* left_track;
     vex::rotation* back_track;
     vex::inertial* imu;
+    vex::controller* controller;
     Odometry* odometry;
     double base_width;
     double left_offset;
@@ -28,7 +29,7 @@ class Chassis {
     double external_ratio;
     double max_radial_acceleration;
 public:
-    Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* left_track, vex::rotation* back_track, vex::inertial* imu, double base_width, double left_offset, double back_offset, double wheel_radius, double tracking_radius, double external_ratio, double max_radial_acceleration);
+    Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* left_track, vex::rotation* back_track, vex::inertial* imu, vex::controller* controller, double base_width, double left_offset, double back_offset, double wheel_radius, double tracking_radius, double external_ratio, double max_radial_acceleration);
 
     void steer(double left_voltage, double right_voltage);
     void set_pose(double x, double y, double rotation);
@@ -44,6 +45,11 @@ public:
     double x();
     double y();
     double rotation();
+    friend int control_by_wire(void* o);
+    friend int default_control(void* o);
 };
+
+int control_by_wire(void* o);
+int default_control(void* o);
 
 #endif // #ifndef CHASSIS_HPP

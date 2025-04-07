@@ -1,8 +1,8 @@
 #include <chassis.hpp>
 
-Chassis::Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* left_track, vex::rotation* back_track, vex::inertial* imu,
+Chassis::Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* left_track, vex::rotation* back_track, vex::inertial* imu, vex::controller* controller,
                  double base_width, double left_offset, double back_offset, double wheel_radius, double tracking_radius, double external_ratio, double max_radial_acceleration)
-    : left(left), right(right), left_track(left_track), back_track(back_track), imu(imu), base_width(base_width),
+    : left(left), right(right), left_track(left_track), back_track(back_track), imu(imu), controller(controller), base_width(base_width),
       left_offset(left_offset), back_offset(back_offset), wheel_radius(wheel_radius), tracking_radius(tracking_radius),
       external_ratio(external_ratio), max_radial_acceleration(max_radial_acceleration) {
     odometry = new Odometry(left_track, back_track, imu, left_offset, back_offset, tracking_radius);
@@ -143,3 +143,160 @@ double Chassis::y() {
 double Chassis::rotation() {
     return odometry -> rotation();
 }
+
+int control_by_wire(void* o) {
+    Chassis* chassis = static_cast<Chassis*>(o);
+    vex::controller& controller = *(chassis -> controller);
+    vex::inertial& imu = *(chassis -> imu);
+    MotorGroup& left = *(chassis -> left);
+    MotorGroup& right = *(chassis -> right);
+	// Turn control parameters
+	double kp = 0.5;    // Proportional gain
+    double ki = 0.01;   // Integral gain
+    double kd = 2.0;    // Derivative gain // 1.2, 1.5
+	const double maxfloat = 3.4e38;
+    PID heading_pid(kp, ki, kd,
+				    0.0,  			// Initial target is set to the initial imu rotation
+                    5.0,            // Tolerance (never terminates)
+                    12.0, 0.0,     	// Max/min output (volts)
+                    maxfloat,       // Activation threshold (always active)
+                    maxfloat,       // Integration threshold
+                    0.0,            // Derivative threshold (never terminates)
+                    50.0,           // Max integral
+                    0.99,           // Gamma (integral decay)
+                    true);          // Deactivate integral on error sign change
+
+    // Sensitivity and deadband parameters
+    const double linear_scale = 12.0 / 100.0;	// Maximum linear speed is 12V
+	
+	// To turn at the same rate, set turn_rate_scale_drift = -0.035
+	const double turn_rate_scale_fast = -0.035;	// Fast turn rate- turning in place
+	// If you want to have better drifting, set this constant- (-0.01) seems to work alright
+    const double turn_rate_scale_drift = -0.035; // Negative due to intuitive control convention (positive is clockwise, and not counterclockwise as in mathematical convention)
+    const int deadband = 1;              	// Ignore inputs below 1%
+
+    // Initialize target heading to the robot's current heading
+    double target_heading = imu.rotation();
+
+    while (true) {
+		// Hack: when the controller toggles control by wire, the target heading is set to the current heading
+		// This relies on "sticky" button behavior
+		if (controller.ButtonA.pressing()) {
+			target_heading = imu.rotation();
+		}
+        // Read controller inputs
+		double linear = controller.Axis3.position() * linear_scale;  	// -100 to 100
+		double angular = controller.Axis1.position();
+		if (std::abs(controller.Axis3.position()) < deadband) {
+			angular *= turn_rate_scale_fast; // -100 to 100
+		} else {
+			angular *= turn_rate_scale_drift; // -100 to 100
+		}
+
+        // Apply deadband
+        if (std::abs(controller.Axis3.position()) < deadband) linear = 0.0;
+        if (std::abs(controller.Axis1.position()) < deadband) angular = 0.0;
+
+        double omega_des = angular; // Desired turn rate in deg/s
+
+        // Update target heading by integrating the turn rate
+        target_heading += omega_des;
+
+        // Get current heading from inertial sensor
+        double current_heading = imu.rotation();
+
+        // Compute PID correction
+        heading_pid.target(target_heading);
+        double pid_output = heading_pid.calculate(current_heading); // Output in volts
+		// Add an anticipative term
+		pid_output += omega_des; // Scale as needed
+
+        double left_power = linear - pid_output;
+        double right_power = linear + pid_output;
+
+        // Set motor powers
+        left.spin(left_power, vex::volt);
+        right.spin(right_power, vex::volt);
+        vex::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return 0;
+}
+
+int default_control(void* o) {
+    Chassis* chassis = static_cast<Chassis*>(o);
+    vex::controller& controller = *(chassis -> controller);
+    MotorGroup& left = *(chassis -> left);
+    MotorGroup& right = *(chassis -> right);
+    while (true) {
+        double linear = controller.Axis3.position();
+        double angular = controller.Axis1.position();
+        double left_power = (linear + angular) * 0.12;
+        double right_power = (linear - angular) * 0.12;
+        left.spin(left_power, vex::volt);
+        right.spin(right_power, vex::volt);
+        vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    return 0;
+}
+
+// int control(void* o) {
+//     Chassis* chassis = static_cast<Chassis*>(o);
+//     vex::controller& controller = *(chassis -> controller);
+//     MotorGroup& left = *(chassis -> left);
+//     MotorGroup& right = *(chassis -> right);
+//     vex::task controller_by_wire(control_by_wire, chassis);
+//     vex::task default_controller(default_control, chassis);
+//     controller_by_wire.suspend();
+//     bool is_default_control = true;
+//     bool last_button_a = false;
+//     unsigned long long loop_iter = 0;
+//     bool last_c[6] = {left[0].connected(), left[1].connected(), left[2].connected(), 
+//                         right[0].connected(), right[1].connected(), right[2].connected()};
+//     while (true) {
+//         bool c[] = {left[0].connected(), left[1].connected(), left[2].connected(),
+//                             right[0].connected(), right[1].connected(), right[2].connected()};
+//         if (
+//             (!c[0] && last_c[0]) ||
+//             (!c[1] && last_c[1]) ||
+//             (!c[2] && last_c[2]) ||
+//             (!c[3] && last_c[3]) ||
+//             (!c[4] && last_c[4]) ||
+//             (!c[5] && last_c[5])
+//         ) {
+//             controller.rumble("-..");
+//             if (is_default_control) {
+//                 controller_by_wire.resume();
+//                 default_controller.suspend();
+//                 is_default_control = false;
+//             }
+//         }
+//         last_c[0] = c[0]; last_c[1] = c[1]; last_c[2] = c[2];
+//         last_c[3] = c[3]; last_c[4] = c[4]; last_c[5] = c[5];
+//         if (loop_iter++ % 25 == 0) {
+//             controller.Screen.clearScreen();
+//             controller.Screen.setCursor(1, 1); controller.Screen.print(c[0] ? "C" : "X");
+//             controller.Screen.setCursor(2, 1); controller.Screen.print(c[1] ? "C" : "X");
+//             controller.Screen.setCursor(3, 1); controller.Screen.print(c[2] ? "C" : "X");
+//             controller.Screen.setCursor(1, 2); controller.Screen.print(c[3] ? "C" : "X");
+//             controller.Screen.setCursor(2, 2); controller.Screen.print(c[4] ? "C" : "X");
+//             controller.Screen.setCursor(3, 2); controller.Screen.print(c[5] ? "C" : "X");
+//             if (!is_default_control) {
+//                 controller.Screen.setCursor(1, 7); controller.Screen.print("W");
+//             }
+//         }
+//         bool button_a = controller.ButtonA.pressing();
+//         if (button_a && !last_button_a) {
+//             if (is_default_control) {
+//                 controller_by_wire.resume();
+//                 default_controller.suspend();
+//             } else {
+//                 controller_by_wire.suspend();
+//                 default_controller.resume();
+//             }
+//             is_default_control = !is_default_control;
+//         }
+//         last_button_a = button_a;
+//         vex::this_thread::sleep_for(std::chrono::milliseconds(10));
+//     }
+//     return 0;
+// }
