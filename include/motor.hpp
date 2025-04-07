@@ -15,7 +15,9 @@
 class Motor {
     static constexpr const double max_motor_rpm = 3600;
     static constexpr const double max_voltage = 12; // 11.76
+public:
     vex::motor* device;
+private:
     double cartridge_ratio;
     double external_ratio;
     double wheel_radius;

@@ -106,7 +106,41 @@ int control() {
 	controller_by_wire.suspend();
 	bool is_default_control = true;
 	bool last_button_a = false;
+	unsigned long long loop_iter = 0;
+	bool last_c[6] = {lm1.connected(), lm2.connected(), lm3.connected(), 
+						rm1.connected(), rm2.connected(), rm3.connected()};
 	while (true) {
+		bool c[] = {lm1.connected(), lm2.connected(), lm3.connected(),
+							rm1.connected(), rm2.connected(), rm3.connected()};
+		if (
+			(!c[0] && last_c[0]) ||
+			(!c[1] && last_c[1]) ||
+			(!c[2] && last_c[2]) ||
+			(!c[3] && last_c[3]) ||
+			(!c[4] && last_c[4]) ||
+			(!c[5] && last_c[5])
+		) {
+			controller.rumble("-..");
+			if (is_default_control) {
+				controller_by_wire.resume();
+				default_controller.suspend();
+				is_default_control = false;
+			}
+		}
+		last_c[0] = c[0]; last_c[1] = c[1]; last_c[2] = c[2];
+		last_c[3] = c[3]; last_c[4] = c[4]; last_c[5] = c[5];
+		if (loop_iter++ % 25 == 0) {
+			controller.Screen.clearScreen();
+			controller.Screen.setCursor(1, 1); controller.Screen.print(c[0] ? "C" : "X");
+			controller.Screen.setCursor(2, 1); controller.Screen.print(c[1] ? "C" : "X");
+			controller.Screen.setCursor(3, 1); controller.Screen.print(c[2] ? "C" : "X");
+			controller.Screen.setCursor(1, 2); controller.Screen.print(c[3] ? "C" : "X");
+			controller.Screen.setCursor(2, 2); controller.Screen.print(c[4] ? "C" : "X");
+			controller.Screen.setCursor(3, 2); controller.Screen.print(c[5] ? "C" : "X");
+			if (!is_default_control) {
+				controller.Screen.setCursor(1, 7); controller.Screen.print("W");
+			}
+		}
 		bool button_a = controller.ButtonA.pressing();
 		if (button_a && !last_button_a) {
 			if (is_default_control) {
@@ -128,11 +162,11 @@ int control_by_wire() {
 	// Turn control parameters
 	double kp = 0.5;    // Proportional gain
     double ki = 0.01;   // Integral gain
-    double kd = 1.2;    // Derivative gain
+    double kd = 2.0;    // Derivative gain // 1.2, 1.5
 	const double maxfloat = 3.4e38;
     PID heading_pid(kp, ki, kd,
 				    0.0,  			// Initial target is set to the initial imu rotation
-                    0.0,            // Tolerance (never terminates)
+                    5.0,            // Tolerance (never terminates)
                     12.0, 0.0,     	// Max/min output (volts)
                     maxfloat,       // Activation threshold (always active)
                     maxfloat,       // Integration threshold
@@ -143,12 +177,15 @@ int control_by_wire() {
 
     // Sensitivity and deadband parameters
     const double linear_scale = 12.0 / 100.0;	// Maximum linear speed is 12V
-    const double turn_rate_scale = -0.1; 		// Negative due to intuitive control convention (positive is clockwise, and not counterclockwise as in mathematical convention)
-    const double deadband = 1.0;              	// Ignore inputs below 1%
+	
+	// To turn at the same rate, set turn_rate_scale_drift = -0.035
+	const double turn_rate_scale_fast = -0.035;	// Fast turn rate- turning in place
+	// If you want to have better drifting, set this constant- (-0.01) seems to work alright
+    const double turn_rate_scale_drift = -0.035; // Negative due to intuitive control convention (positive is clockwise, and not counterclockwise as in mathematical convention)
+    const int deadband = 1;              	// Ignore inputs below 1%
 
     // Initialize target heading to the robot's current heading
     double target_heading = imu.rotation();
-	double last_omega_des = 0.0;
 
     while (true) {
 		// Hack: when the controller toggles control by wire, the target heading is set to the current heading
@@ -157,12 +194,17 @@ int control_by_wire() {
 			target_heading = imu.rotation();
 		}
         // Read controller inputs
-        double linear = controller.Axis3.position() * linear_scale;  	// -100 to 100
-        double angular = controller.Axis1.position() * turn_rate_scale; // -100 to 100
+		double linear = controller.Axis3.position() * linear_scale;  	// -100 to 100
+		double angular = controller.Axis1.position();
+		if (std::abs(controller.Axis3.position()) < deadband) {
+			angular *= turn_rate_scale_fast; // -100 to 100
+		} else {
+			angular *= turn_rate_scale_drift; // -100 to 100
+		}
 
         // Apply deadband
-        if (fabs(linear) < deadband) linear = 0.0;
-        if (fabs(angular) < deadband) angular = 0.0;
+        if (std::abs(controller.Axis3.position()) < deadband) linear = 0.0;
+        if (std::abs(controller.Axis1.position()) < deadband) angular = 0.0;
 
         double omega_des = angular; // Desired turn rate in deg/s
 
@@ -176,13 +218,10 @@ int control_by_wire() {
         heading_pid.target(target_heading);
         double pid_output = heading_pid.calculate(current_heading); // Output in volts
 		// Add an anticipative term
-		pid_output += (omega_des - last_omega_des) * 1.0; // Adjust as needed
+		pid_output += omega_des; // Scale as needed
 
         double left_power = linear - pid_output;
         double right_power = linear + pid_output;
-
-        left_power = left_power < -12.0 ? -12.0 : (left_power > 12.0 ? 12.0 : left_power);
-		right_power = right_power < -12.0 ? -12.0 : (right_power > 12.0 ? 12.0 : right_power);
 
         // Set motor powers
         left.spin(left_power, vex::volt);
