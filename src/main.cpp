@@ -95,7 +95,14 @@ int autonomous() {
 	// base.turn(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
 	// Path path({{0, 0}, {1 TILE, 0.25 TILE}, {2 TILE, 0}, {3 TILE, -0.25 TILE}, {4 TILE, 0}}, 100);
 	Path path({{0, 0}, {-1 TILE, -0.25 TILE}, {-2 TILE, 0}, {-3 TILE, 0.25 TILE}, {-4 TILE, 0}}, 100);
+	Path path2({{-4 TILE, 0}, {-3 TILE, -0.25 TILE}, {-2 TILE, 0}, {-1 TILE, 0.25 TILE}, {0, 0}}, 100);
 	base.follow_path(path, 2.5, 9.0);
+	vexDelay(500);
+	base.turn_to(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
+	vexDelay(500);
+	base.turn_to(0, 0.05, 12.0, 0.02, 0.3, 0.2);
+	vexDelay(500);
+	base.follow_path(path2, 2.5, 9.0);
 	return 0;
 }
 
