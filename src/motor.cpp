@@ -122,7 +122,7 @@ double Motor::wheel_position(vex::rotationUnits units) const {
 }
 
 double Motor::max_wheel_velocity() const {
-    return max_motor_rpm * cartridge_ratio * external_ratio * wheel_radius * M_PI * 2;
+    return max_motor_rpm * cartridge_ratio * external_ratio * wheel_radius * M_PI / 30;
 }
 
 void Motor::spin_to(double position, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio, bool block) {

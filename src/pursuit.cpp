@@ -78,11 +78,11 @@ std::pair<std::pair<double, double>, double> Pursuit::get_relative_steering(doub
         return (cos(alpha) > 0 ? std::make_pair(std::make_pair(norm * 0.5, norm * 0.5), 1e9) : std::make_pair(std::make_pair(-norm * 0.5, -norm * 0.5), 1e9)); // Straight line
     }
     double r_c = d / (sine * 2); // Central radius
-    double left_steering = r_c - w * 0.5; // Radius 1
-    double right_steering = r_c + w * 0.5; // Radius 2
+    double left_steering = fabs(r_c - w * 0.5); // Radius 1
+    double right_steering = fabs(r_c + w * 0.5); // Radius 2
 
     double scale = norm / (fabs(left_steering) + fabs(right_steering)); // normed so |l| + |r| = norm
-    if (sine < 0) {
+    if (cos(alpha) < 0) {
         scale = -scale;
     }
 
@@ -97,6 +97,10 @@ bool Pursuit::terminated(double x_bot, double y_bot) {
     const double distance = sqrt(dx * dx + dy * dy);
     bool distance_condition = distance < distance_threshold;
     return progress_condition and distance_condition;
+}
+
+double Pursuit::progress() {
+    return (double) last_found_idx / (double) path.points.size();
 }
 
 // Simulator: https://www.desmos.com/calculator/6uq283vk0l

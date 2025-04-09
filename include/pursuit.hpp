@@ -8,7 +8,7 @@
 
 class Pursuit {
     friend int autonomous();
-    friend class VirtualChassis;
+    friend class Chassis;
     int last_found_idx;
     double lookahead;
     static const double progress_threshold = 0.95;
@@ -24,6 +24,7 @@ public:
     Coordinate2D get_target(double x_bot, double y_bot);
     std::pair<std::pair<double, double>, double> get_relative_steering(double x_bot, double y_bot, double theta_bot, double width_bot, double norm = 1.0);
     bool terminated(double x_bot, double y_bot);
+    double progress();
 };
 
 #endif // #ifndef PURE_PURSUIT_HPP

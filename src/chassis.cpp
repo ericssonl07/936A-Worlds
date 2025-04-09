@@ -25,22 +25,25 @@ void Chassis::set_pose(double x, double y, double rotation) {
 void Chassis::follow_path(Path path, double tolerance, double lookahead) {
     Pursuit pursuit(path, lookahead);
     while (!pursuit.terminated(x(), y())) {
-        auto [steering, curvature] = pursuit.get_relative_steering(x(), y(), rotation(), base_width, 12.0);
+        double progress = pursuit.progress();
+        double voltage_limit = 4 / (1 + exp((progress - 0.75) * 20)) + 8.0; // \frac{4}{1+e^{20\left(x-0.75\right)}}+8- logistic function
+        auto [steering, curvature] = pursuit.get_relative_steering(x(), y(), rotation(), base_width, voltage_limit);
         auto [left_velocity, right_velocity] = steering;
         
         // auto [target_x, target_y] = pursuit.get_target(x(), y());
         // printf("(%.5f, %.5f) -> (%.5f, %.5f): (%.5f, %.5f)\n\n\n", x(), y(), target_x, target_y, left_velocity, right_velocity); vexDelay(1);
-        printf("(%.5f, %.5f)\n", x(), y());
+        // printf("(%.5f, %.5f)\n", x(), y());
 
-        // #define RESTRICT_VELOCITY // Uncomment this line to restrict the velocity
+        #define RESTRICT_VELOCITY // Uncomment this line to restrict the velocity
         #ifdef RESTRICT_VELOCITY
-        const double max_velocity = sqrt(fabs(curvature * max_radial_acceleration)); // v=√(ar)
+        const double max_velocity0 = sqrt(fabs(curvature * max_radial_acceleration)); // v=√(ar)
         const double v_wheel_max = left -> max_wheel_velocity();
         const double left_tangential_as_pct_max = left_velocity / 12.0;
         const double left_tangential = v_wheel_max * left_tangential_as_pct_max;
-        const double angular_speed = left_tangential / (curvature - base_width * 0.5); // |omega|=v/r_left
+        const double angular_speed = left_tangential / fabs(curvature - base_width * 0.5); // |omega|=v/r_left
         const double center_tangential = curvature * angular_speed; // v=|omega|*r_center
-        const double correction_ratio = std::min(max_velocity / center_tangential, 1.0);
+        double correction_ratio = max_velocity0 / fabs(center_tangential);
+        correction_ratio = correction_ratio < 1.0 ? correction_ratio : 1.0;
         left_velocity *= correction_ratio;
         right_velocity *= correction_ratio;
         #endif
