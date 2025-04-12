@@ -29,11 +29,6 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
         double voltage_limit = 4 / (1 + exp((progress - 0.75) * 20)) + 8.0; // \frac{4}{1+e^{20\left(x-0.75\right)}}+8- logistic function
         auto [steering, curvature] = pursuit.get_relative_steering(x(), y(), rotation(), base_width, voltage_limit);
         auto [left_velocity, right_velocity] = steering;
-        
-        // auto [target_x, target_y] = pursuit.get_target(x(), y());
-        // printf("(%.5f, %.5f) -> (%.5f, %.5f): (%.5f, %.5f)\n\n\n", x(), y(), target_x, target_y, left_velocity, right_velocity); vexDelay(1);
-        // printf("(%.5f, %.5f)\n", x(), y());
-
         #define RESTRICT_VELOCITY // Uncomment this line to restrict the velocity
         #ifdef RESTRICT_VELOCITY
         const double max_velocity0 = sqrt(fabs(curvature * max_radial_acceleration)); // v=√(ar)
@@ -43,7 +38,7 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
         const double angular_speed = left_tangential / fabs(curvature - base_width * 0.5); // |omega|=v/r_left
         const double center_tangential = curvature * angular_speed; // v=|omega|*r_center
         double correction_ratio = max_velocity0 / fabs(center_tangential);
-        correction_ratio = correction_ratio < 1.0 ? correction_ratio : 1.0;
+        correction_ratio = correction_ratio < 1.0 ? (correction_ratio > 0.2 ? correction_ratio : 0.2) : 1.0;
         left_velocity *= correction_ratio;
         right_velocity *= correction_ratio;
         #endif
@@ -51,9 +46,9 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
         steer(left_velocity, right_velocity);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    printf("Done\n");
     left -> stop();
     right -> stop();
+    printf("Done\n");
 }
 
 void Chassis::turn_to(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
@@ -87,7 +82,7 @@ void Chassis::turn(double angle, double tolerance, double maximum, double minimu
     printf("Done\n");
 }
 
-void Chassis::forward(double distance, double correction_strength, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+void Chassis::forward(double distance, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
     double target_x = x() + distance * cos(rotation());
     double target_y = y() + distance * sin(rotation());
     double original_x = x();
@@ -97,7 +92,7 @@ void Chassis::forward(double distance, double correction_strength, double tolera
         double dy = y() - original_y;
         return sqrt(dx * dx + dy * dy);
     };
-    PID forward_controller(0.5, 0.0, 2.0, // adjust gains
+    PID forward_controller(0.5, 0.05, 1.0, // adjust gains
                            distance, // target position
                            tolerance, // tolerance: allowed error
                            maximum, // max_value
@@ -107,23 +102,178 @@ void Chassis::forward(double distance, double correction_strength, double tolera
                            0.05, // derivative_threshold
                            50.0, // max_integral
                            0.999); // gamma
+    double target = fmod(rotation(), M_PI * 2);
+    if (target < 0) {
+        target += M_PI * 2;
+    }
+    PID angular_controller(15.0, 0.9, 45.0,
+                           target, // target position
+                           0.0, // tolerance: allowed error
+                           3.0, // max_value
+                           0.0, // min_value
+                           1e9, // activation_threshold
+                           1.0, // integration_threshold
+                           0.0, // derivative_threshold
+                           10.0, // max_integral
+                           0.999); // gamma
     while (!forward_controller.arrived()) {
         double pos = dist();
         double output = forward_controller.calculate(pos);
-        double progress = dist() / distance;
-        double clamp = sqrt(1.0 - pow(progress, 3.0));
-        double correction = correction_strength * atan2(target_y - y(), target_x - x()) * clamp;
-        const double m_c = 1.0;
-        correction = correction < -m_c ? -m_c : (correction > m_c ? m_c : correction);
-        printf("%.5f\n", rotation() / M_PI * 180.0);
-        // printf("(%.5f, %.5f, %.5f)\n", x(), y(), rotation());
-        left -> spin(output - correction, vex::voltageUnits::volt);
-        right -> spin(output + correction, vex::voltageUnits::volt);
+        double progress = pos / distance;
+        double angle_filter = 1 / (1 + exp((progress - 0.75) * 50));
+        double relative_angle = atan2(target_y - y(), target_x - x());
+        double correction = angular_controller.calculate(relative_angle) * angle_filter;
+        left -> spin(output + correction, vex::voltageUnits::volt);
+        right -> spin(output - correction, vex::voltageUnits::volt);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     left -> stop();
     right -> stop();
     printf("Done\n");
+}
+
+void Chassis::forward_timer(double time, double base_voltage, double corrective_strength) {
+    left -> spin(base_voltage, vex::voltageUnits::volt);
+    right -> spin(base_voltage, vex::voltageUnits::volt);
+    double original_rotation = rotation();
+    PID angular_correction(corrective_strength * 15.0, corrective_strength * 0.9, corrective_strength * 45.0,
+                           original_rotation, // target position
+                           0.0, // tolerance: allowed error
+                           3.0, // max_value
+                           0.0, // min_value
+                           1e9, // activation_threshold
+                           1.0, // integration_threshold
+                           0.0, // derivative_threshold
+                           10.0, // max_integral
+                           0.999); // gamma
+    auto start = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
+    while (duration < time) {
+        double relative_angle = original_rotation - rotation();
+        double correction = angular_correction.calculate(relative_angle);
+        // Only start limiting the last second
+        double remaining_time = duration - time + 1;
+        remaining_time = remaining_time < 0 ? 0 : remaining_time;
+        double adjusted_voltage = base_voltage / (1 + exp((remaining_time - 0.85) * 10));
+        double adjusted_correction = correction / (1 + exp((remaining_time - 0.75) * 20));
+        left -> spin(adjusted_voltage + adjusted_correction, vex::voltageUnits::volt);
+        right -> spin(adjusted_voltage - adjusted_correction, vex::voltageUnits::volt);
+        duration = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
+    }
+    left -> stop();
+    right -> stop();
+    printf("Done\n");
+}
+
+void Chassis::steer_timer(double left_voltage, double right_voltage, double time) {
+    left -> spin(left_voltage, vex::voltageUnits::volt);
+    right -> spin(right_voltage, vex::voltageUnits::volt);
+    vexDelay(time * 1000);
+    left -> stop();
+    right -> stop();
+}
+
+void Chassis::drift_in_place(double bias, double new_heading, double strength, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+    PID phase1_angular(strength * 15.0, strength * 0.9, strength * 45.0,
+                       new_heading, // target position
+                       0.035, // tolerance: allowed error
+                       maximum, // max_value
+                       minimum, // min_value
+                       fabs(bias * activation_ratio), // activation_threshold
+                       fabs(bias * integral_ratio), // integration_threshold
+                       0.05, // derivative_threshold
+                       10.0, // max_integral
+                       0.999); // gamma
+    double original_rotation = rotation();
+    while (!phase1_angular.arrived()) {
+        double output = phase1_angular.calculate(rotation());
+        double linear = bias;
+        double angle_progress = fabs((rotation() - original_rotation) / (new_heading - original_rotation));
+        double angle_filter = 1 / (1 + exp((angle_progress - 0.8) * 10));
+        linear *= angle_filter;
+        left -> spin(linear - output, vex::voltageUnits::volt);
+        right -> spin(linear + output, vex::voltageUnits::volt);
+        vex::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    left -> stop();
+    right -> stop();
+    vexDelay(100);
+    turn_to(new_heading, 0.05, maximum, minimum, activation_ratio, integral_ratio);
+}
+
+void Chassis::drift_after_distance(double distance, double bias, double new_heading, double strength, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+    double original_x = x(), original_y = y();
+    double original_rotation = rotation();
+    double target = fmod(rotation(), M_PI * 2);
+    if (target < 0) {
+        target += M_PI * 2;
+    }
+    PID phase1_angular(15.0, 0.9, 45.0,
+                       target, // target position
+                       0.0, // tolerance: allowed error
+                       3.0, // max_value
+                       0.0, // min_value
+                       fabs(distance * activation_ratio), // activation_threshold
+                       fabs(distance * integral_ratio), // integration_threshold
+                       0.0, // derivative_threshold
+                       10.0, // max_integral
+                       0.999); // gamma
+    auto dist = [this, original_x = x(), original_y = y()] () {
+        double dx = x() - original_x;
+        double dy = y() - original_y;
+        return sqrt(dx * dx + dy * dy);
+    };
+    while (dist() < distance) {
+        double output = 12.0;
+        double relative_angle = atan2(original_y - y(), original_x - x());
+        double correction = phase1_angular.calculate(relative_angle);
+        left -> spin(output + correction, vex::voltageUnits::volt);
+        right -> spin(output - correction, vex::voltageUnits::volt);
+    }
+    PID phase2_angular(strength * 15.0, strength * 0.9, strength * 45.0,
+                       new_heading, // target position
+                       0.035, // tolerance: allowed error
+                       maximum, // max_value
+                       minimum, // min_value
+                       fabs(distance * activation_ratio), // activation_threshold
+                       fabs(distance * integral_ratio), // integration_threshold
+                       0.05, // derivative_threshold
+                       10.0, // max_integral
+                       0.999); // gamma
+    while (!phase2_angular.arrived()) {
+        double output = phase2_angular.calculate(rotation());
+        double linear = bias;
+        double angle_progress = fabs((rotation() - original_rotation) / (new_heading - original_rotation));
+        double angle_filter = 1 / (1 + exp((angle_progress - 0.8) * 10));
+        linear *= angle_filter;
+        left -> spin(linear - output, vex::voltageUnits::volt);
+        right -> spin(linear + output, vex::voltageUnits::volt);
+        vex::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    left -> stop();
+    right -> stop();
+    vexDelay(100);
+    turn_to(new_heading, 0.05, maximum, minimum, activation_ratio, integral_ratio);
+}
+
+void Chassis::corner_reset(double lengthwise_offset) {
+    double sine = sin(rotation());
+    double cosine = cos(rotation());
+    double corner_x, corner_y;
+    corner_x = cosine > 0 ? 0 : 144;
+    corner_y = sine > 0 ? 0 : 144;
+    double pt1_x = corner_x + base_width * sine;
+    double pt1_y = corner_y;
+    double pt2_x = corner_x;
+    double pt2_y = corner_y + base_width * cosine;
+    double midpt_x = (pt1_x + pt2_x) * 0.5;
+    double midpt_y = (pt1_y + pt2_y) * 0.5;
+    double dx = lengthwise_offset * cosine;
+    double dy = lengthwise_offset * sine;
+    double new_x = midpt_x + dx;
+    double new_y = midpt_y + dy;
+    set_pose(new_x, new_y, rotation());
+    printf("Reset to (%.5f, %.5f, %.5f)\n", new_x, new_y, rotation() / M_PI * 180.0);
 }
 
 void Chassis::reset_position() {
@@ -147,7 +297,7 @@ double Chassis::rotation() {
     return odometry -> rotation();
 }
 
-int control_by_wire(void* o) {
+int wire_control(void* o) {
     Chassis* chassis = static_cast<Chassis*>(o);
     vex::controller& controller = *(chassis -> controller);
     vex::inertial& imu = *(chassis -> imu);
@@ -225,7 +375,7 @@ int control_by_wire(void* o) {
     return 0;
 }
 
-int default_control(void* o) {
+int arcade_control(void* o) {
     Chassis* chassis = static_cast<Chassis*>(o);
     vex::controller& controller = *(chassis -> controller);
     MotorGroup& left = *(chassis -> left);
@@ -242,64 +392,65 @@ int default_control(void* o) {
     return 0;
 }
 
-// int control(void* o) {
-//     Chassis* chassis = static_cast<Chassis*>(o);
-//     vex::controller& controller = *(chassis -> controller);
-//     MotorGroup& left = *(chassis -> left);
-//     MotorGroup& right = *(chassis -> right);
-//     vex::task controller_by_wire(control_by_wire, chassis);
-//     vex::task default_controller(default_control, chassis);
-//     controller_by_wire.suspend();
-//     bool is_default_control = true;
-//     bool last_button_a = false;
-//     unsigned long long loop_iter = 0;
-//     bool last_c[6] = {left[0].connected(), left[1].connected(), left[2].connected(), 
-//                         right[0].connected(), right[1].connected(), right[2].connected()};
-//     while (true) {
-//         bool c[] = {left[0].connected(), left[1].connected(), left[2].connected(),
-//                             right[0].connected(), right[1].connected(), right[2].connected()};
-//         if (
-//             (!c[0] && last_c[0]) ||
-//             (!c[1] && last_c[1]) ||
-//             (!c[2] && last_c[2]) ||
-//             (!c[3] && last_c[3]) ||
-//             (!c[4] && last_c[4]) ||
-//             (!c[5] && last_c[5])
-//         ) {
-//             controller.rumble("-..");
-//             if (is_default_control) {
-//                 controller_by_wire.resume();
-//                 default_controller.suspend();
-//                 is_default_control = false;
-//             }
-//         }
-//         last_c[0] = c[0]; last_c[1] = c[1]; last_c[2] = c[2];
-//         last_c[3] = c[3]; last_c[4] = c[4]; last_c[5] = c[5];
-//         if (loop_iter++ % 25 == 0) {
-//             controller.Screen.clearScreen();
-//             controller.Screen.setCursor(1, 1); controller.Screen.print(c[0] ? "C" : "X");
-//             controller.Screen.setCursor(2, 1); controller.Screen.print(c[1] ? "C" : "X");
-//             controller.Screen.setCursor(3, 1); controller.Screen.print(c[2] ? "C" : "X");
-//             controller.Screen.setCursor(1, 2); controller.Screen.print(c[3] ? "C" : "X");
-//             controller.Screen.setCursor(2, 2); controller.Screen.print(c[4] ? "C" : "X");
-//             controller.Screen.setCursor(3, 2); controller.Screen.print(c[5] ? "C" : "X");
-//             if (!is_default_control) {
-//                 controller.Screen.setCursor(1, 7); controller.Screen.print("W");
-//             }
-//         }
-//         bool button_a = controller.ButtonA.pressing();
-//         if (button_a && !last_button_a) {
-//             if (is_default_control) {
-//                 controller_by_wire.resume();
-//                 default_controller.suspend();
-//             } else {
-//                 controller_by_wire.suspend();
-//                 default_controller.resume();
-//             }
-//             is_default_control = !is_default_control;
-//         }
-//         last_button_a = button_a;
-//         vex::this_thread::sleep_for(std::chrono::milliseconds(10));
-//     }
-//     return 0;
-// }
+int curvature_control(void* o) {
+    Chassis* chassis = static_cast<Chassis*>(o);
+    vex::controller& controller = *(chassis -> controller);
+    MotorGroup& left = *(chassis -> left);
+    MotorGroup& right = *(chassis -> right);
+    while (true) {
+        // Get raw joystick values (-1.0 to 1.0)
+        double throttle = controller.Axis3.position() / 100.0;
+        double turn = controller.Axis1.position() / 100.0;
+        
+        // Apply deadband
+        const double DEADBAND = 0.05;
+        if (fabs(throttle) < DEADBAND) throttle = 0.0;
+        if (fabs(turn) < DEADBAND) turn = 0.0;
+        
+        double left_power, right_power;
+        
+        if (fabs(throttle) < DEADBAND && fabs(turn) > DEADBAND) {
+            // Turn in place
+            left_power = turn;
+            right_power = -turn;
+        } else {
+            // Curvature drive
+            const double SENSITIVITY = 0.8; // Adjust this to change turning sensitivity
+            double angularCmd = throttle * turn * SENSITIVITY;
+            
+            left_power = throttle + angularCmd;
+            right_power = throttle - angularCmd;
+            
+            // Normalize to prevent motor saturation
+            double maxMagnitude = std::max(fabs(left_power), fabs(right_power));
+            if (maxMagnitude > 1.0) {
+                left_power /= maxMagnitude;
+                right_power /= maxMagnitude;
+            }
+        }
+        
+        // Send to motors
+		left.spin(left_power * 12.0, vex::voltageUnits::volt);
+		right.spin(right_power * 12.0, vex::voltageUnits::volt);
+        
+        // Small delay to prevent CPU overload
+        vex::this_thread::sleep_for(10);
+    }
+    return 0;
+}
+
+int tank_control(void* o) {
+    Chassis* chassis = static_cast<Chassis*>(o);
+    vex::controller& controller = *(chassis -> controller);
+    MotorGroup& left = *(chassis -> left);
+    MotorGroup& right = *(chassis -> right);
+	while (true) {
+		double left_power = controller.Axis3.position() / 100.0;
+		double right_power = controller.Axis2.position() / 100.0;
+
+		left.spin(left_power * 12.0, vex::voltageUnits::volt);
+		right.spin(right_power * 12.0, vex::voltageUnits::volt);
+
+		vex::this_thread::sleep_for(10);
+	}
+}

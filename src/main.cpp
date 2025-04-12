@@ -90,19 +90,33 @@ Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_wi
 #endif
 
 int autonomous() {
+	base.set_pose(72, 9, M_PI * 0.5);
+	base.drift_after_distance(10, 12.0, M_PI, 1.0, 3.0, 0.02, 0.3, 0.2);
 	// vexDelay(1000);
-	// base.forward(3 TILE, 1.5, 0.5, 12.8, 0.02, 0.3, 0.2); // 1.0 worked well
+	// base.forward(3 TILE, 0.5, 12.0, 0.02, 0.3, 0.2);
+	// base.drift_after_distance(0, 12.0, -M_PI * 0.5, 1.0, 3.0, 0.02, 0.3, 0.2);
+	// base.drift_in_place(12.0, -M_PI * 0.5, 1.0, 3.0, 0.02, 0.3, 0.2);
+	// base.drift_after_distance(2.5 TILE, 8.0, -M_PI * 0.5, 3.0, 0.02, 0.3, 0.2);
+	// vexDelay(500);
+	// base.turn_to(-M_PI * 0.5, 0.05, 3.0, 0.02, 0.3, 0.2);
+	// printf("Rotation: %.5f\n", base.rotation() / M_PI * 180.0);
+	// base.forward_timer(2.0, 12.0, 0.5);
+	// base.steer_timer(12.0, 10.0, 2.0);
+
 	// base.turn(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
 	// Path path({{0, 0}, {1 TILE, 0.25 TILE}, {2 TILE, 0}, {3 TILE, -0.25 TILE}, {4 TILE, 0}}, 100);
-	Path path({{0, 0}, {-1 TILE, -0.25 TILE}, {-2 TILE, 0}, {-3 TILE, 0.25 TILE}, {-4 TILE, 0}}, 100);
-	Path path2({{-4 TILE, 0}, {-3 TILE, -0.25 TILE}, {-2 TILE, 0}, {-1 TILE, 0.25 TILE}, {0, 0}}, 100);
-	base.follow_path(path, 2.5, 9.0);
-	vexDelay(500);
-	base.turn_to(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
-	vexDelay(500);
-	base.turn_to(0, 0.05, 12.0, 0.02, 0.3, 0.2);
-	vexDelay(500);
-	base.follow_path(path2, 2.5, 9.0);
+
+	// Path path({{0, 0}, {-1 TILE, -0.1 TILE}, {-2 TILE, 0}, {-3 TILE, 0.1 TILE}, {-4 TILE, 0}}, 100);
+	// Path path2({{-4 TILE, 0}, {-3 TILE, -0.1 TILE}, {-2 TILE, 0}, {-1 TILE, 0.1 TILE}, {0, 0}}, 100);
+	// base.follow_path(path, 2.5, 9.0);
+	// vexDelay(500);
+	// base.turn_to(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
+	// vexDelay(500);
+	// base.turn_to(0, 0.05, 12.0, 0.02, 0.3, 0.2);
+	// vexDelay(500);
+	// base.follow_path(path2, 2.5, 9.0);
+	// vexDelay(500);
+	// base.turn_to(0, 0.05, 12.0, 0.02, 0.3, 0.2);
 	return 0;
 }
 
@@ -111,6 +125,18 @@ int control();
 int main() {
 	imu.calibrate();
 	vexDelay(3000);
+	// vex::task control_task(control);
+	// bool button_b, last_button_b = false;
+	// base.set_pose(7.5, 7.5, 0);
+	// while (true) {
+	// 	button_b = controller.ButtonB.pressing();
+	// 	if (button_b && !last_button_b) {
+	// 		base.corner_reset(7.5);
+	// 	}
+	// 	last_button_b = button_b;
+	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(10));
+	// }
+
 	vex::task auton(autonomous);
 	while (true) {
 		if (controller.ButtonA.pressing()) {
@@ -121,10 +147,53 @@ int main() {
 }
 
 int control() {
-	vex::task controller_by_wire(control_by_wire, &base);
-	vex::task default_controller(default_control, &base);
-	controller_by_wire.suspend();
-	bool is_default_control = true;
+	enum ControlMode {
+		Wire,
+		Arcade
+		// Curvature,
+		// Tank
+	};
+	ControlMode current_mode = Arcade;
+	vex::task wire_controller(wire_control, &base);
+	vex::task arcade_controller(arcade_control, &base);
+	// vex::task curvature_controller(curvature_control, &base);
+	// vex::task tank_controller(tank_control, &base);
+	wire_controller.suspend();
+	// curvature_controller.suspend();
+	// tank_controller.suspend();
+	auto switch_to = [&] (ControlMode mode) {
+		if (current_mode == mode) {
+			return;
+		}
+		current_mode = mode;
+		switch (mode) {
+			case Wire:
+				wire_controller.resume(); arcade_controller.suspend(); /*curvature_controller.suspend(); tank_controller.suspend();*/
+				break;
+			case Arcade:
+				wire_controller.suspend(); arcade_controller.resume(); /*curvature_controller.suspend(); tank_controller.suspend();*/
+				break;
+			// case Curvature:
+			// 	wire_controller.suspend(); arcade_controller.suspend(); curvature_controller.resume(); tank_controller.suspend();
+			// 	break;
+			// case Tank:
+			// 	wire_controller.suspend(); arcade_controller.suspend(); curvature_controller.suspend(); tank_controller.resume();
+			// 	break;
+		}
+	};
+	auto next_mode = [&] () {
+		switch (current_mode) {
+			case Wire:
+				return Arcade;
+			case Arcade:
+				return Wire;
+			// 	return Curvature;
+			// case Curvature:
+			// 	return Tank;
+			// case Tank:
+			// 	return Wire;
+		}
+	};
 	bool last_button_a = false;
 	unsigned long long loop_iter = 0;
 	bool last_c[6] = {lm1.connected(), lm2.connected(), lm3.connected(), 
@@ -141,11 +210,17 @@ int control() {
 			(!c[5] && last_c[5])
 		) {
 			controller.rumble("-..");
-			if (is_default_control) {
-				controller_by_wire.resume();
-				default_controller.suspend();
-				is_default_control = false;
-			}
+			switch_to(Wire);
+		}
+		if (
+			(c[0] && !last_c[0]) ||
+			(c[1] && !last_c[1]) ||
+			(c[2] && !last_c[2]) ||
+			(c[3] && !last_c[3]) ||
+			(c[4] && !last_c[4]) ||
+			(c[5] && !last_c[5])
+		) {
+			controller.rumble("-.-.");
 		}
 		last_c[0] = c[0]; last_c[1] = c[1]; last_c[2] = c[2];
 		last_c[3] = c[3]; last_c[4] = c[4]; last_c[5] = c[5];
@@ -157,20 +232,24 @@ int control() {
 			controller.Screen.setCursor(1, 2); controller.Screen.print(c[3] ? "C" : "X");
 			controller.Screen.setCursor(2, 2); controller.Screen.print(c[4] ? "C" : "X");
 			controller.Screen.setCursor(3, 2); controller.Screen.print(c[5] ? "C" : "X");
-			if (!is_default_control) {
-				controller.Screen.setCursor(1, 7); controller.Screen.print("W");
+			switch (current_mode) {
+				case Wire:
+					controller.Screen.setCursor(1, 7); controller.Screen.print("Wire");
+					break;
+				case Arcade:
+					controller.Screen.setCursor(1, 7); controller.Screen.print("Arcade");
+					break;
+				// case Curvature:
+				// 	controller.Screen.setCursor(1, 7); controller.Screen.print("Curvature");
+				// 	break;
+				// case Tank:
+				// 	controller.Screen.setCursor(1, 7); controller.Screen.print("Tank");
+				// 	break;
 			}
 		}
 		bool button_a = controller.ButtonA.pressing();
 		if (button_a && !last_button_a) {
-			if (is_default_control) {
-				controller_by_wire.resume();
-				default_controller.suspend();
-			} else {
-				controller_by_wire.suspend();
-				default_controller.resume();
-			}
-			is_default_control = !is_default_control;
+			switch_to(next_mode());
 		}
 		last_button_a = button_a;
 		vex::this_thread::sleep_for(std::chrono::milliseconds(10));

@@ -81,6 +81,8 @@ std::pair<std::pair<double, double>, double> Pursuit::get_relative_steering(doub
     double left_steering = fabs(r_c - w * 0.5); // Radius 1
     double right_steering = fabs(r_c + w * 0.5); // Radius 2
 
+    // double max_steer = left_steering < right_steering ? right_steering : left_steering; 
+    // double scale = norm / max_steer; // normed so max(|l|, |r|) = norm
     double scale = norm / (fabs(left_steering) + fabs(right_steering)); // normed so |l| + |r| = norm
     if (cos(alpha) < 0) {
         scale = -scale;
