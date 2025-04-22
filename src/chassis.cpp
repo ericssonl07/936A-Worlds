@@ -1,11 +1,11 @@
 #include <chassis.hpp>
 
-Chassis::Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* left_track, vex::rotation* back_track, vex::inertial* imu, vex::controller* controller,
+Chassis::Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* forward_track, vex::rotation* side_track, vex::inertial* imu, vex::controller* controller,
                  double base_width, double left_offset, double back_offset, double wheel_radius, double tracking_radius, double external_ratio, double max_radial_acceleration)
-    : left(left), right(right), left_track(left_track), back_track(back_track), imu(imu), controller(controller), base_width(base_width),
-      left_offset(left_offset), back_offset(back_offset), wheel_radius(wheel_radius), tracking_radius(tracking_radius),
+    : left(left), right(right), forward_track(forward_track), side_track(side_track), imu(imu), controller(controller), base_width(base_width),
+      forward_offset(left_offset), side_offset(back_offset), wheel_radius(wheel_radius), tracking_radius(tracking_radius),
       external_ratio(external_ratio), max_radial_acceleration(max_radial_acceleration) {
-    odometry = new Odometry(left_track, back_track, imu, left_offset, back_offset, tracking_radius);
+    odometry = new Odometry(forward_track, side_track, imu, left_offset, back_offset, tracking_radius);
 }
 
 void Chassis::steer(double left_voltage, double right_voltage) {
