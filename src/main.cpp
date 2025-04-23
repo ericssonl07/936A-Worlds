@@ -26,7 +26,7 @@
 // const constexpr static int Tier3HangPrototype_BASE = 1;
 // const constexpr static int WorldsChampionship_BASE = 2;
 
-#define BASE_TYPE 1
+#define BASE_TYPE 2
 #define TILE * 24.0
 
 // All in inches
@@ -68,24 +68,30 @@ vex::rotation back_track(vex::PORT5, false);
 vex::inertial imu(vex::PORT11, vex::turnType::left);
 Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_width, left_offset, back_offset, wheel_radius, tracking_wheel_radius, external_ratio, max_radial_accel);
 #else // BASE_TYPE == 2
-Motor lm1(vex::PORT13, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius);
-Motor lm2(vex::PORT12, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius);
-Motor lm3(vex::PORT11, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius);
-Motor rm1(vex::PORT3, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius);
-Motor rm2(vex::PORT2, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius);
-Motor rm3(vex::PORT1, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius);
-Motor ladybrown(vex::PORT17, vex::gearSetting::ratio18_1, false, lb_ratio, 1.0);
-Motor intake(vex::PORT19, vex::gearSetting::ratio6_1, true, intake_ratio, 1.0);
+// Worlds Championship
+Motor lm1(vex::PORT8, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor lm2(vex::PORT7, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
+Motor lm3(vex::PORT9, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor rm1(vex::PORT3, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
+Motor rm2(vex::PORT2, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor rm3(vex::PORT4, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
+Motor lb1(vex::PORT10, vex::gearSetting::ratio18_1, false, lb_ratio, 1.0); // not wired
+Motor intake(vex::PORT11, vex::gearSetting::ratio6_1, true, intake_ratio, 1.0); // correct
+vex::inertial imu(vex::PORT1, vex::turnType::left); // correct
 MotorGroup left(external_ratio, wheel_radius, &lm1, &lm2, &lm3);
 MotorGroup right(external_ratio, wheel_radius, &rm1, &rm2, &rm3);
-vex::rotation left_track(vex::PORT7, true); // TODO: install tracking wheels and adjust ports
-vex::rotation back_track(vex::PORT5, false); // TODO: install tracking wheels and adjust ports
-vex::rotation intake_track(vex::PORT20, false);
-vex::inertial imu(vex::PORT11, vex::turnType::left);
-vex::optical mogo_color(vex::PORT15);
-vex::pneumatics mogo_piston(brain.ThreeWirePort.A);
-vex::pneumatics intake_pto(brain.ThreeWirePort.B);
-vex::pneumatics base_pto(brain.ThreeWirePort.C);
+vex::rotation left_track(vex::PORT7, true); // not wired
+vex::rotation back_track(vex::PORT5, false); // not wired
+vex::optical intake_hook_color(vex::PORT6); // correct
+vex::optical mogo_color(vex::PORT12); // correct
+vex::optical first_stage_color(vex::PORT13); // not wired
+vex::rotation intake_rotation(vex::PORT5, false); // correct
+vex::pneumatics mogo_piston(brain.ThreeWirePort.A); // not wired
+vex::pneumatics intake_pto(brain.ThreeWirePort.B); // not wired
+vex::pneumatics hang_piston(brain.ThreeWirePort.C); // not wired
+vex::pneumatics base_pto(brain.ThreeWirePort.D); // not wired
+vex::pneumatics ring_doinker(brain.ThreeWirePort.E); // not wired
+vex::pneumatics goal_doinker(brain.ThreeWirePort.F); // not wired
 Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_width, left_offset, back_offset, wheel_radius, tracking_wheel_radius, external_ratio, max_radial_accel);
 #endif
 
