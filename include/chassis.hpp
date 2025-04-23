@@ -64,9 +64,9 @@
 class Chassis {
 
 /**
- * @privatesection
+ * @protectedsection
  */
-private:
+protected:
 
     /**
      * @private left
