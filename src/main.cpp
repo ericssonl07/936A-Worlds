@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <thread>
 #include <chrono>
+#include <highstakes.hpp>
 
 // enum Bases {
 // 	HKTechChallenge,
@@ -70,29 +71,35 @@ Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_wi
 #else // BASE_TYPE == 2
 // Worlds Championship
 Motor lm1(vex::PORT8, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
-Motor lm2(vex::PORT7, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
-Motor lm3(vex::PORT9, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor lm2(vex::PORT9, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor lm3(vex::PORT7, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
 Motor rm1(vex::PORT3, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
-Motor rm2(vex::PORT2, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
-Motor rm3(vex::PORT4, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
-Motor lb1(vex::PORT10, vex::gearSetting::ratio18_1, false, lb_ratio, 1.0); // not wired
-Motor intake(vex::PORT11, vex::gearSetting::ratio6_1, true, intake_ratio, 1.0); // correct
+Motor rm2(vex::PORT4, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
+Motor rm3(vex::PORT2, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+vex::motor lb1(vex::PORT10, vex::gearSetting::ratio18_1, false); // not wired
+vex::motor intake(vex::PORT11, vex::gearSetting::ratio6_1, true); // correct
 vex::inertial imu(vex::PORT1, vex::turnType::left); // correct
 MotorGroup left(external_ratio, wheel_radius, &lm1, &lm2, &lm3);
 MotorGroup right(external_ratio, wheel_radius, &rm1, &rm2, &rm3);
 vex::rotation left_track(vex::PORT7, true); // not wired
 vex::rotation back_track(vex::PORT5, false); // not wired
-vex::optical intake_hook_color(vex::PORT6); // correct
-vex::optical mogo_color(vex::PORT12); // correct
-vex::optical first_stage_color(vex::PORT13); // not wired
+vex::optical intake_hook_color(vex::PORT12); // correct
+vex::optical mogo_color(vex::PORT13); // correct
+vex::optical first_stage_color(vex::PORT20); // not wired
 vex::rotation intake_rotation(vex::PORT5, false); // correct
-vex::pneumatics mogo_piston(brain.ThreeWirePort.A); // not wired
-vex::pneumatics intake_pto(brain.ThreeWirePort.B); // not wired
-vex::pneumatics hang_piston(brain.ThreeWirePort.C); // not wired
+vex::pneumatics mogo_piston(brain.ThreeWirePort.C); // not wired
+vex::pneumatics intake_pto(brain.ThreeWirePort.D); // not wired
+vex::pneumatics hang_piston(brain.ThreeWirePort.B); // not wired
 vex::pneumatics base_pto(brain.ThreeWirePort.D); // not wired
 vex::pneumatics ring_doinker(brain.ThreeWirePort.E); // not wired
 vex::pneumatics goal_doinker(brain.ThreeWirePort.F); // not wired
-Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_width, left_offset, back_offset, wheel_radius, tracking_wheel_radius, external_ratio, max_radial_accel);
+// Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_width, left_offset, back_offset, wheel_radius, tracking_wheel_radius, external_ratio, max_radial_accel);
+HighStakesChassis base(&left, &right, &left_track, &back_track, &imu, &controller,
+	&intake, &lb1, &base_pto, &intake_pto, &mogo_piston, &hang_piston,
+	&ring_doinker, &goal_doinker, &intake_hook_color, &mogo_color,
+	&first_stage_color, &intake_rotation,
+	base_width, left_offset, back_offset, wheel_radius,
+	tracking_wheel_radius, external_ratio, max_radial_accel);
 #endif
 
 int autonomous() {
@@ -143,12 +150,13 @@ int main() {
 	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(10));
 	// }
 
-	vex::task auton(autonomous);
+	// vex::task auton(autonomous);
+	vex::task ladybrown_task(ladybrown_thread, &base);
+	vex::task intake_task(intake_thread, &base);
+	vex::task pneumatics_task(pneumatics_thread, &base);
+	vex::task highstakes_control_task(highstakes_control, &base);
 	while (true) {
-		if (controller.ButtonA.pressing()) {
-			auton.stop();
-			control();
-		}
+		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
 
@@ -193,7 +201,7 @@ int control() {
 				return Arcade;
 			case Arcade:
 				return Wire;
-			// 	return Curvature;
+			//	 	return Curvature;
 			// case Curvature:
 			// 	return Tank;
 			// case Tank:
@@ -267,9 +275,9 @@ int control() {
 int subsystems_control() {
 	while (true) {
 		if (controller.ButtonR1.pressing()) {
-			intake.spin(12.0, vex::voltageUnits::volt);
+			intake.spin(vex::fwd, 12.8, vex::voltageUnits::volt);
 		} else if (controller.ButtonR2.pressing()) {
-			intake.spin(-12.0, vex::voltageUnits::volt);
+			intake.spin(vex::fwd, -12.8, vex::voltageUnits::volt);
 		} else {
 			intake.stop();
 		}

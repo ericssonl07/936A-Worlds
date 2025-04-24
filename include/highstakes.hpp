@@ -124,7 +124,7 @@ int ladybrown_thread(void* o) {
             // Macro mode (PID control)
             base->lb_pid.target(base->lb_target_arm_height);
             // Use calculate_raw if the original PID class had it, otherwise use calculate
-            double pid_output_power = base->lb_pid.calculate(current_lb_pos);
+            double pid_output_power = base->lb_pid.calculate(current_lb_pos, false);
             // Convert PID output (likely voltage) to percent if needed, or adjust PID gains for percent output
             lb_motor_ptr->spin(vex::directionType::fwd, pid_output_power, vex::voltageUnits::volt); // Assuming PID outputs voltage
         }
@@ -217,13 +217,13 @@ int highstakes_control(void* o) {
     // Button mapping (adjust defines/variables as needed)
     #define DRIVE_AXIS_FORWARD controller_ptr->Axis3.position(vex::percentUnits::pct)
     #define DRIVE_AXIS_TURN    controller_ptr->Axis1.position(vex::percentUnits::pct)
-    #define PTO_BIND           controller_ptr->ButtonL1.pressing() // Example mapping
-    #define MOGO_BIND          controller_ptr->ButtonL2.pressing() // Example mapping
-    #define HANG_BIND          controller_ptr->ButtonR1.pressing() // Example mapping
-    #define INTAKE_BIND        controller_ptr->ButtonR2.pressing() // Example mapping
-    #define OUTTAKE_BIND       controller_ptr->ButtonB.pressing()  // Example mapping
-    #define LB_RAISE_BIND      controller_ptr->ButtonUp.pressing() // Example mapping
-    #define LB_LOWER_BIND      controller_ptr->ButtonDown.pressing() // Example mapping
+    #define PTO_BIND           controller_ptr->ButtonB.pressing() // Example mapping
+    #define MOGO_BIND          controller_ptr->ButtonDown.pressing() // Example mapping
+    #define HANG_BIND          controller_ptr->ButtonA.pressing() // Example mapping
+    #define INTAKE_BIND        controller_ptr->ButtonR1.pressing() // Example mapping
+    #define OUTTAKE_BIND       controller_ptr->ButtonR2.pressing()  // Example mapping
+    #define LB_RAISE_BIND      controller_ptr->ButtonL1.pressing() // Example mapping
+    #define LB_LOWER_BIND      controller_ptr->ButtonL2.pressing() // Example mapping
     #define RING_DOINKER_BIND  controller_ptr->ButtonX.pressing() // Example mapping - Added
     #define GOAL_DOINKER_BIND  controller_ptr->ButtonY.pressing() // Example mapping - Added
 
@@ -233,8 +233,8 @@ int highstakes_control(void* o) {
         double linear_power = DRIVE_AXIS_FORWARD;
         double turn_power = DRIVE_AXIS_TURN;
         // Convert percent to voltage for steer method
-        double left_voltage = (linear_power + turn_power) * 0.12;
-        double right_voltage = (linear_power - turn_power) * 0.12;
+        double left_voltage = (linear_power + turn_power) * 0.128;
+        double right_voltage = (linear_power - turn_power) * 0.128;
         base->steer(left_voltage, right_voltage); // Use base class steer method
 
         // Pneumatics Toggles
@@ -323,6 +323,7 @@ int highstakes_control(void* o) {
                     // printf("Macro: Descore 2+\\n");
                     // Reset state after second press if desired
                     // if (base->descore_state > 2) base->descore_state = 0;
+                    base->descore_state = 0;
                 }
             } else {
                  // If only Lower is pressed (and wasn't before), manual mode takes over above

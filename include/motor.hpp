@@ -59,11 +59,8 @@ private:
      */
     static constexpr const double max_motor_rpm = 3600;
 
-    /**
-     * @private max_voltage
-     * @brief Maximum voltage of the motor- equals 12V for a VEX V5 Smart Motor
-     */
-    static constexpr const double max_voltage = 12;
+
+    static constexpr const double max_voltage = 12.8;
 
 /**
  * @publicsection
