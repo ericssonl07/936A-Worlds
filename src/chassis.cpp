@@ -10,9 +10,9 @@ Chassis::Chassis(MotorGroup* left, MotorGroup* right, vex::rotation* forward_tra
 
 void Chassis::steer(double left_voltage, double right_voltage) {
     double max_voltage = std::max(fabs(left_voltage), fabs(right_voltage));
-    if (max_voltage > 12.0) {
-        left_voltage *= 12.0 / max_voltage;
-        right_voltage *= 12.0 / max_voltage;
+    if (max_voltage > 12.8) {
+        left_voltage *= 12.8 / max_voltage;
+        right_voltage *= 12.8 / max_voltage;
     }
     left -> spin(left_voltage, vex::volt);
     right -> spin(right_voltage, vex::volt);

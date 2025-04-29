@@ -40,8 +40,7 @@ double max_radial_accel = 100.0;
 double base_width = 11.25;
 double left_offset = 0;
 double back_offset = 5.6;
-vex::brain brain;
-vex::controller controller;
+// 59.675mm
 #if BASE_TYPE == 0
 Motor lm1(vex::PORT10, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius);
 Motor lm2(vex::PORT6, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius);
@@ -70,34 +69,37 @@ vex::inertial imu(vex::PORT11, vex::turnType::left);
 Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_width, left_offset, back_offset, wheel_radius, tracking_wheel_radius, external_ratio, max_radial_accel);
 #else // BASE_TYPE == 2
 // Worlds Championship
-Motor lm1(vex::PORT8, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
-Motor lm2(vex::PORT9, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
-Motor lm3(vex::PORT7, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
+Motor lm1(vex::PORT18, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor lm2(vex::PORT20, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
+Motor lm3(vex::PORT17, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
 Motor rm1(vex::PORT3, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
 Motor rm2(vex::PORT4, vex::gearSetting::ratio6_1, false, external_ratio, wheel_radius); // correct
 Motor rm3(vex::PORT2, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius); // correct
-vex::motor lb1(vex::PORT10, vex::gearSetting::ratio18_1, false); // not wired
+vex::motor lb1(vex::PORT19, vex::gearSetting::ratio18_1, false); // not wired
+vex::motor lb2(vex::PORT16, vex::gearSetting::ratio18_1, true); // not wired
 vex::motor intake(vex::PORT11, vex::gearSetting::ratio6_1, true); // correct
 vex::inertial imu(vex::PORT1, vex::turnType::left); // correct
 MotorGroup left(external_ratio, wheel_radius, &lm1, &lm2, &lm3);
 MotorGroup right(external_ratio, wheel_radius, &rm1, &rm2, &rm3);
-vex::rotation left_track(vex::PORT7, true); // not wired
-vex::rotation back_track(vex::PORT5, false); // not wired
+vex::rotation left_track(vex::PORT9, true); // not wired
+vex::rotation back_track(vex::PORT8, false); // not wired
 vex::optical intake_hook_color(vex::PORT12); // correct
 vex::optical mogo_color(vex::PORT13); // correct
-vex::optical first_stage_color(vex::PORT20); // not wired
+vex::optical first_stage_color(vex::PORT14); // correct
+vex::distance lb_distance(vex::PORT15); 
 vex::rotation intake_rotation(vex::PORT5, false); // correct
-vex::pneumatics mogo_piston(brain.ThreeWirePort.C); // not wired
-vex::pneumatics intake_pto(brain.ThreeWirePort.D); // not wired
+vex::pneumatics mogo_piston(brain.ThreeWirePort.D); // not wired
+vex::pneumatics intake_pto(brain.ThreeWirePort.F); // not wired
 vex::pneumatics hang_piston(brain.ThreeWirePort.B); // not wired
-vex::pneumatics base_pto(brain.ThreeWirePort.D); // not wired
-vex::pneumatics ring_doinker(brain.ThreeWirePort.E); // not wired
-vex::pneumatics goal_doinker(brain.ThreeWirePort.F); // not wired
+vex::pneumatics base_pto(brain.ThreeWirePort.C); // not wired
+vex::pneumatics intake_lift(brain.ThreeWirePort.E);
+vex::pneumatics ring_doinker(brain.ThreeWirePort.H); // not wired
+vex::pneumatics goal_doinker(brain.ThreeWirePort.G); // not wired
 // Chassis base(&left, &right, &left_track, &back_track, &imu, &controller, base_width, left_offset, back_offset, wheel_radius, tracking_wheel_radius, external_ratio, max_radial_accel);
 HighStakesChassis base(&left, &right, &left_track, &back_track, &imu, &controller,
-	&intake, &lb1, &base_pto, &intake_pto, &mogo_piston, &hang_piston,
-	&ring_doinker, &goal_doinker, &intake_hook_color, &mogo_color,
-	&first_stage_color, &intake_rotation,
+	&intake, &lb1, &lb2, &base_pto, &intake_pto, &mogo_piston, &hang_piston,
+	&ring_doinker, &goal_doinker, &intake_lift, &intake_hook_color, &mogo_color,
+	&first_stage_color, &lb_distance, &intake_rotation,
 	base_width, left_offset, back_offset, wheel_radius,
 	tracking_wheel_radius, external_ratio, max_radial_accel);
 #endif
@@ -136,8 +138,9 @@ int autonomous() {
 int control();
 
 int main() {
+	printf("poop:)\n:);\n");
 	imu.calibrate();
-	vexDelay(3000);
+	// vexDelay(3000);
 	// vex::task control_task(control);
 	// bool button_b, last_button_b = false;
 	// base.set_pose(7.5, 7.5, 0);
@@ -152,7 +155,9 @@ int main() {
 
 	// vex::task auton(autonomous);
 	vex::task ladybrown_task(ladybrown_thread, &base);
+	vex::task intake_helper_task(intake_helper_thread, &base);
 	vex::task intake_task(intake_thread, &base);
+	vex::task mogo_task(mogo_thread, &base);
 	vex::task pneumatics_task(pneumatics_thread, &base);
 	vex::task highstakes_control_task(highstakes_control, &base);
 	while (true) {

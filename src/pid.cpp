@@ -173,6 +173,35 @@ double PID::calculate(double current, bool limit) {
     return output_ = output;
 }
 
+double PID::calculate_raw(double current, bool limit) {
+    // Calculate error
+    double error = target_ - current;
+    
+    // Update integral term (standard accumulation without decay)
+    integral_ += error;
+    
+    // Apply anti-windup by clamping the integral
+    if (limit && std::fabs(integral_) > max_integral_) {
+        integral_ = sgn(integral_) * max_integral_;
+    }
+    
+    // Calculate derivative term
+    double derivative = error - last_error_;
+    
+    // Compute the PID output
+    double output = kp_ * error + ki_ * integral_ + kd_ * derivative;
+    
+    // Apply simple output limiting if needed
+    if (limit && std::fabs(output) > max_value_) {
+        output = sgn(output) * max_value_;
+    }
+    
+    // Update last error for next iteration
+    last_error_ = error;
+    
+    return output_ = output;
+}
+
 // Return whether the controller is considered to have arrived.
 bool PID::arrived() const {
     return arrived_;

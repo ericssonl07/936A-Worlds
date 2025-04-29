@@ -212,6 +212,8 @@ public:
      */
     double calculate(double current, bool limit = true);
 
+    double calculate_raw(double current, bool limit);
+
     /**
      * @public arrived
      * @brief Check if the controller has arrived at the target
