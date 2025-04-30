@@ -23,8 +23,6 @@ void move_motor(vex::motor m, int pct) {
 
 class HighStakesChassis: public Chassis {
 private:
-    // Base Chassis Devices (already passed via base constructor)
-
     struct Ring {
         HighStakesChassis* chassis;
         int  hooked_stage;
@@ -46,12 +44,6 @@ private:
             return chassis->get_intake_pos() - hooked_stage * chassis->intake_period;
         }
     };
-    // MotorGroup* left;
-    // MotorGroup* right;
-    // vex::rotation* forward_track;
-    // vex::rotation* side_track;
-    // vex::inertial* imu;
-    // vex::controller* controller;
 
     // High Stakes Specific Devices
     vex::motor* intake_motor;
@@ -97,16 +89,6 @@ private:
 
     // PID controller for Ladybrown
     PID lb_pid;
-
-
-    // Configuration (already passed via base constructor)
-    // double base_width;
-    // double forward_offset;
-    // double side_offset;
-    // double wheel_radius;
-    // double tracking_radius;
-    // double external_ratio;
-    // double max_radial_acceleration;
 
     // Helper function to get Ladybrown position (assuming lb_motor has encoder)
     double get_lb_pos() {
@@ -474,14 +456,10 @@ int highstakes_control(void* o) {
         double linear_power = DRIVE_AXIS_FORWARD;
         double turn_power = DRIVE_AXIS_TURN;
         // Convert percent to voltage for steer method
-        // double left_voltage = (linear_power + turn_power) * .128;
-        // double right_voltage = (linear_power - turn_power) * .128;
         double left_voltage = (linear_power + turn_power) * 12.8;
         double right_voltage = (linear_power - turn_power) * 12.8;
-        // base->steer(left_voltage, right_voltage); // Use base class steer method
-
-        // base->left->spin(left_voltage);
-        // base->right->spin(right_voltage);
+        // left_voltage *= 0.5;
+        // right_voltage *= 0.5;
 
         move_motor(leftmotor1, left_voltage);
         move_motor(leftmotor2, left_voltage);

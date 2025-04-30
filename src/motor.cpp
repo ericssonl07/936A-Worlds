@@ -98,7 +98,7 @@ void Motor::spin(double power, vex::percentUnits units) {
 }
 
 void Motor::spin(double voltage, vex::voltageUnits units) {
-    printf("voltage = %f\n", voltage);
+    // printf("voltage = %f\n", voltage);
     device -> spin(vex::directionType::fwd, voltage, units);
 }
 

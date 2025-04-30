@@ -32,7 +32,7 @@
 
 // All in inches
 double wheel_radius = 3.125 / 2;
-double tracking_wheel_radius = 2.7 / 2;
+double tracking_wheel_radius = 2.75 / 2;
 double external_ratio = 48.0 / 72.0;
 double lb_ratio = 12.0 / 36.0;
 double intake_ratio = 1.0;
@@ -81,12 +81,12 @@ vex::motor intake(vex::PORT11, vex::gearSetting::ratio6_1, true); // correct
 vex::inertial imu(vex::PORT1, vex::turnType::left); // correct
 MotorGroup left(external_ratio, wheel_radius, &lm1, &lm2, &lm3);
 MotorGroup right(external_ratio, wheel_radius, &rm1, &rm2, &rm3);
-vex::rotation left_track(vex::PORT9, true); // not wired
-vex::rotation back_track(vex::PORT8, false); // not wired
+vex::rotation left_track(vex::PORT7, false); // not wired
+vex::rotation back_track(vex::PORT8, true); // not wired
 vex::optical intake_hook_color(vex::PORT12); // correct
 vex::optical mogo_color(vex::PORT13); // correct
-vex::optical first_stage_color(vex::PORT14); // correct
-vex::distance lb_distance(vex::PORT15); 
+vex::optical first_stage_color(vex::PORT15); // correct
+vex::distance lb_distance(vex::PORT14);
 vex::rotation intake_rotation(vex::PORT5, false); // correct
 vex::pneumatics mogo_piston(brain.ThreeWirePort.D); // not wired
 vex::pneumatics intake_pto(brain.ThreeWirePort.F); // not wired
@@ -105,55 +105,74 @@ HighStakesChassis base(&left, &right, &left_track, &back_track, &imu, &controlle
 #endif
 
 int autonomous() {
-	base.set_pose(72, 9, M_PI * 0.5);
-	base.drift_after_distance(10, 12.0, M_PI, 1.0, 3.0, 0.02, 0.3, 0.2);
-	// vexDelay(1000);
-	// base.forward(3 TILE, 0.5, 12.0, 0.02, 0.3, 0.2);
-	// base.drift_after_distance(0, 12.0, -M_PI * 0.5, 1.0, 3.0, 0.02, 0.3, 0.2);
-	// base.drift_in_place(12.0, -M_PI * 0.5, 1.0, 3.0, 0.02, 0.3, 0.2);
-	// base.drift_after_distance(2.5 TILE, 8.0, -M_PI * 0.5, 3.0, 0.02, 0.3, 0.2);
-	// vexDelay(500);
-	// base.turn_to(-M_PI * 0.5, 0.05, 3.0, 0.02, 0.3, 0.2);
-	// printf("Rotation: %.5f\n", base.rotation() / M_PI * 180.0);
-	// base.forward_timer(2.0, 12.0, 0.5);
-	// base.steer_timer(12.0, 10.0, 2.0);
+    // 1) Reset and set pose
+    base.reset_position();
+    base.set_pose(0, 0, 0);
 
-	// base.turn(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
-	// Path path({{0, 0}, {1 TILE, 0.25 TILE}, {2 TILE, 0}, {3 TILE, -0.25 TILE}, {4 TILE, 0}}, 100);
+    // // 2) Move forward 24 inches
+    // base.forward(24.0, 0.1);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-	// Path path({{0, 0}, {-1 TILE, -0.1 TILE}, {-2 TILE, 0}, {-3 TILE, 0.1 TILE}, {-4 TILE, 0}}, 100);
-	// Path path2({{-4 TILE, 0}, {-3 TILE, -0.1 TILE}, {-2 TILE, 0}, {-1 TILE, 0.1 TILE}, {0, 0}}, 100);
-	// base.follow_path(path, 2.5, 9.0);
-	// vexDelay(500);
-	// base.turn_to(M_PI / 2, 0.05, 12.0, 0.02, 0.3, 0.2);
-	// vexDelay(500);
-	// base.turn_to(0, 0.05, 12.0, 0.02, 0.3, 0.2);
-	// vexDelay(500);
-	// base.follow_path(path2, 2.5, 9.0);
-	// vexDelay(500);
-	// base.turn_to(0, 0.05, 12.0, 0.02, 0.3, 0.2);
-	return 0;
+    // // 3) Turn to absolute 90°
+    // base.turn_to(M_PI/2, 0.05);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // // 4) Turn relative –90°
+    // base.turn(-M_PI/2, 0.05);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // // 5) Timed forward (2 s at 6 V)
+    // base.forward_timer(2.0, 6.0, 0.1);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // // 6) Timed steer (1.5 s at ±6 V)
+    // base.steer_timer(6.0, -6.0, 1.5);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // // 7) Drift in place to 90°
+    // base.drift_in_place(12.0, M_PI / 2, 0.2);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // // 8) Drift after moving 12″, bias 6 V to 90°
+    // base.drift_after_distance(24.0, 6.0, M_PI/2, 0.1, 5.0);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // // 9) Follow a simple square path
+    // Path path({
+	// 	 {0, 0},
+	// 	 {48.0, 0},
+	// 	 {96.0, -48.0}},
+	// 	-1);
+    // base.follow_path(path, 1.0, 5.0);
+
+    // // 10) Corner‐reset with 5″ offset
+    // base.corner_reset(5.0);
+    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // // 11) Stop and report final pose
+    // base.stop();
+    // double px = base.x();
+    // double py = base.y();
+    // double pr = base.rotation();
+    // brain.Screen.clearScreen();
+    // brain.Screen.printAt(1, 20, "Pose X: %.2f", px);
+    // brain.Screen.printAt(1, 40, "Pose Y: %.2f", py);
+    // brain.Screen.printAt(1, 60, "Rot (rad): %.2f", pr);
+    return 0;
 }
 
 int control();
 
 int main() {
-	printf("poop:)\n:);\n");
 	imu.calibrate();
-	// vexDelay(3000);
-	// vex::task control_task(control);
-	// bool button_b, last_button_b = false;
-	// base.set_pose(7.5, 7.5, 0);
-	// while (true) {
-	// 	button_b = controller.ButtonB.pressing();
-	// 	if (button_b && !last_button_b) {
-	// 		base.corner_reset(7.5);
-	// 	}
-	// 	last_button_b = button_b;
-	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(10));
-	// }
-
+	vexDelay(3000);
 	// vex::task auton(autonomous);
+	// while (!controller.ButtonA.pressing()) {
+	// 	printf("(%.5f, %.5f)\n", base.x(), base.y());
+	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	// }
+	// auton.stop();
+
 	vex::task ladybrown_task(ladybrown_thread, &base);
 	vex::task intake_helper_task(intake_helper_thread, &base);
 	vex::task intake_task(intake_thread, &base);
@@ -161,6 +180,10 @@ int main() {
 	vex::task pneumatics_task(pneumatics_thread, &base);
 	vex::task highstakes_control_task(highstakes_control, &base);
 	while (true) {
+		if (controller.ButtonA.pressing()) {
+			base.corner_reset(7.0);
+		}
+		printf("(%.5f, %.5f)\n", base.x(), base.y());
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
