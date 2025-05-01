@@ -23,7 +23,9 @@ void Chassis::set_pose(double x, double y, double rotation) {
 }
 
 void Chassis::follow_path(Path path, double tolerance, double lookahead) {
+    printf("Called follow_path... ");
     Pursuit pursuit(path, lookahead);
+    const double min_voltage = 1.5;
     while (!pursuit.terminated(x(), y())) {
         double progress = pursuit.progress();
         double voltage_limit = 4 / (1 + exp((progress - 0.75) * 20)) + 8.0; // \frac{4}{1+e^{20\left(x-0.75\right)}}+8- logistic function
@@ -41,6 +43,12 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
         correction_ratio = correction_ratio < 1.0 ? (correction_ratio > 0.2 ? correction_ratio : 0.2) : 1.0;
         left_velocity *= correction_ratio;
         right_velocity *= correction_ratio;
+        double least_voltage = fabs(left_velocity) < fabs(right_velocity) ? fabs(left_velocity) : fabs(right_velocity);
+        if (least_voltage < min_voltage) {
+            correction_ratio = min_voltage / least_voltage;
+            left_velocity *= correction_ratio;
+            right_velocity *= correction_ratio;
+        }
         #endif
 
         steer(left_velocity, right_velocity);
@@ -48,7 +56,7 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
     }
     left -> stop();
     right -> stop();
-    printf("Done\n");
+    printf("done!\n");
 }
 
 void Chassis::turn_to(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
@@ -58,6 +66,7 @@ void Chassis::turn_to(double angle, double tolerance, double maximum, double min
 }
 
 void Chassis::turn(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+    printf("Called turn... ");
     double target = rotation() + angle;
     double error0 = angle;
     PID turn_controller(5.0, 0.3, 15.0, // adjust gains // 5 0.3 5
@@ -79,20 +88,22 @@ void Chassis::turn(double angle, double tolerance, double maximum, double minimu
     }
     left -> stop();
     right -> stop();
-    printf("Done\n");
+    printf("done!\n");
 }
 
 void Chassis::forward(double distance, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
     double target_x = x() + distance * cos(rotation());
     double target_y = y() + distance * sin(rotation());
+    printf("Calling forward from (%.5f, %.5f, %.5f) -> (%.5f, %.5f)... \n", x(), y(), rotation(), target_x, target_y);
     double original_x = x();
     double original_y = y();
-    auto dist = [this, original_x, original_y] () {
+    auto dist = [this, distance, original_x, original_y] () {
         double dx = x() - original_x;
         double dy = y() - original_y;
-        return sqrt(dx * dx + dy * dy);
+        double raw_distance = sqrt(dx * dx + dy * dy);
+        return distance < 0 ? -raw_distance : raw_distance;
     };
-    PID forward_controller(0.5, 0.05, 1.0, // adjust gains
+    PID forward_controller(0.45, 0.04, 2.0, // adjust gains
                            distance, // target position
                            tolerance, // tolerance: allowed error
                            maximum, // max_value
@@ -102,14 +113,11 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
                            0.05, // derivative_threshold
                            50.0, // max_integral
                            0.999); // gamma
-    double target = fmod(rotation(), M_PI * 2);
-    if (target < 0) {
-        target += M_PI * 2;
-    }
+    double target = rotation();
     PID angular_controller(15.0, 0.9, 45.0,
                            target, // target position
                            0.0, // tolerance: allowed error
-                           3.0, // max_value
+                           6.0, // max_value
                            0.0, // min_value
                            1e9, // activation_threshold
                            1.0, // integration_threshold
@@ -119,17 +127,31 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
     while (!forward_controller.arrived()) {
         double pos = dist();
         double output = forward_controller.calculate(pos);
-        double progress = pos / distance;
-        double angle_filter = 1 / (1 + exp((progress - 0.75) * 50));
-        double relative_angle = atan2(target_y - y(), target_x - x());
-        double correction = angular_controller.calculate(relative_angle) * angle_filter;
-        left -> spin(output + correction, vex::voltageUnits::volt);
-        right -> spin(output - correction, vex::voltageUnits::volt);
+        double progress = fabs(pos / distance);
+        double angle_filter = 1 / (1 + exp((progress - 0.85) * 50));
+        double relative_angle;
+        if (distance > 0) {
+            relative_angle = atan2(target_y - y(), target_x - x());
+        } else {
+            relative_angle = atan2(y() - target_y, x() - target_x);
+        }
+        double actual_relative = floor((rotation() - relative_angle + M_PI) / (M_PI * 2)) * M_PI * 2 + relative_angle;
+        double correction = angular_controller.calculate(actual_relative) * angle_filter;
+        double left_voltage, right_voltage;
+        if (distance > 0) {
+            left_voltage = output + correction;
+            right_voltage = output - correction;
+        } else {
+            left_voltage = output + correction;
+            right_voltage = output - correction;
+        }
+        left -> spin(left_voltage, vex::voltageUnits::volt);
+        right -> spin(right_voltage, vex::voltageUnits::volt);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     left -> stop();
     right -> stop();
-    printf("Done\n");
+    printf("done!\n");
 }
 
 void Chassis::forward_timer(double time, double base_voltage, double corrective_strength) {
@@ -149,15 +171,17 @@ void Chassis::forward_timer(double time, double base_voltage, double corrective_
     auto start = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
     while (duration < time) {
-        double relative_angle = original_rotation - rotation();
-        double correction = angular_correction.calculate(relative_angle);
+        // double relative_angle = original_rotation - rotation();
+        double correction = angular_correction.calculate(rotation());
         // Only start limiting the last second
         double remaining_time = duration - time + 1;
         remaining_time = remaining_time < 0 ? 0 : remaining_time;
         double adjusted_voltage = base_voltage / (1 + exp((remaining_time - 0.85) * 10));
         double adjusted_correction = correction / (1 + exp((remaining_time - 0.75) * 20));
-        left -> spin(adjusted_voltage + adjusted_correction, vex::voltageUnits::volt);
-        right -> spin(adjusted_voltage - adjusted_correction, vex::voltageUnits::volt);
+        double left_voltage = adjusted_voltage - adjusted_correction;
+        double right_voltage = adjusted_voltage + adjusted_correction;
+        left -> spin(left_voltage, vex::voltageUnits::volt);
+        right -> spin(right_voltage, vex::voltageUnits::volt);
         duration = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
     }
     left -> stop();
@@ -166,11 +190,13 @@ void Chassis::forward_timer(double time, double base_voltage, double corrective_
 }
 
 void Chassis::steer_timer(double left_voltage, double right_voltage, double time) {
+    printf("Called steer_timer... ");
     left -> spin(left_voltage, vex::voltageUnits::volt);
     right -> spin(right_voltage, vex::voltageUnits::volt);
     vexDelay(time * 1000);
     left -> stop();
     right -> stop();
+    printf("done!\n");
 }
 
 void Chassis::drift_in_place(double bias, double new_heading, double strength, double maximum, double minimum, double activation_ratio, double integral_ratio) {
@@ -273,7 +299,7 @@ void Chassis::corner_reset(double lengthwise_offset) {
     double new_x = midpt_x + dx;
     double new_y = midpt_y + dy;
     set_pose(new_x, new_y, rotation());
-    printf("Reset to (%.5f, %.5f, %.5f)\n", new_x, new_y, rotation() / M_PI * 180.0);
+    printf("Corner reset to (%.5f, %.5f, %.5f)\n", new_x, new_y, rotation() / M_PI * 180.0);
 }
 
 void Chassis::reset_position() {

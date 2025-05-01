@@ -22,6 +22,7 @@ void move_motor(vex::motor m, int pct) {
 }
 
 class HighStakesChassis: public Chassis {
+    friend int main();
 private:
     struct Ring {
         HighStakesChassis* chassis;
@@ -458,8 +459,8 @@ int highstakes_control(void* o) {
         // Convert percent to voltage for steer method
         double left_voltage = (linear_power + turn_power) * 12.8;
         double right_voltage = (linear_power - turn_power) * 12.8;
-        // left_voltage *= 0.5;
-        // right_voltage *= 0.5;
+        // left_voltage *= 0.25;
+        // right_voltage *= 0.25;
 
         move_motor(leftmotor1, left_voltage);
         move_motor(leftmotor2, left_voltage);

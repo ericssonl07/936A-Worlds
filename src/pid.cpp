@@ -129,6 +129,10 @@ double PID::calculate(double current, bool limit) {
 
     // Compute derivative (assuming constant time steps).
     double derivative = error - last_error_;
+    if (derivative == 0) {
+        derivative = derivative_;
+    }
+    derivative_ = derivative;
 
     // Deactivate the integral if:
     // - Error sign has changed and integral deactivation is enabled.
@@ -217,9 +221,9 @@ void PID::set_gains(double kp, double ki, double kd) {
 // Get P, I, D, and output.
 std::map<std::string, double> PID::get_info() {
     return {
-        {"P", kp_},
-        {"I", ki_},
-        {"D", kd_},
+        {"P", last_error_},
+        {"I", integral_},
+        {"D", derivative_},
         {"Output", output_}
     };
 }

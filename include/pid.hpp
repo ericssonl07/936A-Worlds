@@ -293,6 +293,12 @@ private:
     double last_error_;
 
     /**
+     * @private derivative_
+     * @brief Derivative value
+     */
+    double derivative_;
+
+    /**
      * @private integral_
      * @brief Integral value
      */

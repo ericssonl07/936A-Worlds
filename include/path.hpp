@@ -450,6 +450,8 @@ class Path {
 
     friend class Chassis;
 
+    friend int autonomous();
+
     /**
      * @private points
      * @brief Vector of points representing the linear path approximation
