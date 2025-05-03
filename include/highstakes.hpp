@@ -13,9 +13,9 @@ vex::controller controller;
 vex::motor leftmotor1(vex::PORT18, vex::gearSetting::ratio6_1, true); // correct
 vex::motor leftmotor2(vex::PORT20, vex::gearSetting::ratio6_1, true); // correct
 vex::motor leftmotor3(vex::PORT17, vex::gearSetting::ratio6_1, false); // correct
-vex::motor rightmotor1(vex::PORT3, vex::gearSetting::ratio6_1, false); // correct
+vex::motor rightmotor1(vex::PORT2, vex::gearSetting::ratio6_1, false); // correct
 vex::motor rightmotor2(vex::PORT4, vex::gearSetting::ratio6_1, false); // correct
-vex::motor rightmotor3(vex::PORT2, vex::gearSetting::ratio6_1, true); // correct
+vex::motor rightmotor3(vex::PORT3, vex::gearSetting::ratio6_1, true); // correct
 
 void move_motor(vex::motor m, int pct) {
     m.spin(vex::fwd, 128 * pct, vex::voltageUnits::mV);
@@ -81,6 +81,9 @@ private:
     const double lb_load_height = 100.0; // Load height for LB
     const double lb_descore1_height = 470.0; // Descore height for LB
     const double lb_descore2_height = 520.0; // Score height for LB
+    const double lb_store_height = 250.0; // Store height for LB
+
+    bool lb_store_mode = false;
 
     int descore_state = 0; // For LB macro
     const double  intake_period = 19.0 * (360.0 / 6.0); // 19 chain links per hook //1140
@@ -110,7 +113,7 @@ private:
     }
 
     bool detectRed(double hue) {
-        if (hue <= 170 || hue >= 250) {
+        if (hue <= 170 || hue >= 300) {
             return true;
         }
 
@@ -168,11 +171,32 @@ int ladybrown_thread(void* o) {
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::motor* lb_motor1_ptr = base->lb_motor1; // Get pointer for direct use
     vex::motor* lb_motor2_ptr = base->lb_motor2; // Get pointer for direct use
+    bool prev_lb_has_ring = false;
+    double prev_lb_pos = 0.0;
 
     while (true) {
         double current_lb_pos = base->get_lb_pos();
         if (current_lb_pos < 0) {
             lb_motor1_ptr->resetPosition();
+        }
+
+        if (base->get_lb_pos() > base->lb_store_height - 20 && prev_lb_pos <= base->lb_store_height - 20) {
+
+            base->lb_store_mode = true;
+
+        } else if (base->get_lb_pos() <= base->lb_store_height - 20 && prev_lb_pos > base->lb_store_height - 20) {
+
+            base->lb_store_mode = false;
+        }
+
+        if (base->lb_has_ring && !prev_lb_has_ring) {
+            printf("macro\n");
+            base->lb_macro_mode = true;
+            base->lb_target_arm_height = base->lb_store_height;
+        }
+
+        if (base->lb_has_ring && base->lb_distance->objectDistance(vex::distanceUnits::mm) > 150 || base->get_lb_pos() > base->lb_store_height - 20) {
+            base->lb_has_ring = false;
         }
 
         if (!base->lb_macro_mode) {
@@ -195,6 +219,8 @@ int ladybrown_thread(void* o) {
             move_motor(*lb_motor2_ptr, pid_output_power);
         }
 
+        prev_lb_pos = base->get_lb_pos();
+        prev_lb_has_ring = base->lb_has_ring;
         vex::this_thread::sleep_for(10); // Use std::chrono if preferred
     }
     return 0; // Should not be reached
@@ -210,25 +236,28 @@ int intake_helper_thread(void* o) {
 
     while (true) {
         if (first_stage_color_ptr->isNearObject() && base->first_stage_ring == nullptr && prev_first_stage_color == false) {
-            printf("yup thats the rpoblem\n");
             base->first_stage_ring = new HighStakesChassis::Ring(base);
-            base->first_stage_ring->color = first_stage_color_ptr->hue() < 170 ? 1 : 0; // Example: red = 1, blue = 0
+            base->first_stage_ring->color = base->detectRed(first_stage_color_ptr->hue());
         }
         prev_first_stage_color = first_stage_color_ptr->isNearObject();
 
         // push rings into queue
         if (base->first_stage_ring != nullptr &&
             intake_hook_color_ptr->isNearObject() &&
-            base->get_intake_hook_pos() > 500 && base->get_intake_hook_pos() < 800) {
+            base->get_intake_hook_pos() > 450 && base->get_intake_hook_pos() < 800) {
             
             // new ring in the hook stage
             HighStakesChassis::Ring ring(base);
-            ring.color = base->first_stage_ring->color; // Pass color from first stage
+            // ring.color = base->first_stage_ring->color; // Pass color from first stage
+            ring.color = base->detectRed(intake_hook_color_ptr->hue());
+            printf("detected hue = %f\n", intake_hook_color_ptr->hue());
             ring.hooked_stage = base->get_intake_stage();
             base->intake_ring_queue.push_front(ring);
 
-            printf("push\n");
-            printf("Intake ring queue size: %d\n", base->intake_ring_queue.size());
+            printf("pushed ring\n");
+            printf("color: %d\n", base->first_stage_ring->color);
+            printf("hooked stage: %d\n", base->first_stage_ring->hooked_stage);
+            printf("hooked pos: %f\n", base->first_stage_ring->get_pos());
 
             // remove the ring from the first stage intake
             delete base->first_stage_ring;
@@ -242,7 +271,7 @@ int intake_helper_thread(void* o) {
                 base->intake_ring_queue.pop_front();
             }
             
-            if (base->intake_ring_queue.back().get_pos() > (base->intake_period - 200) && !base->toggle_intake_pto) {
+            if (base->intake_ring_queue.back().get_pos() > (base->intake_period - 150)) {
                 base->intake_ring_fire = true;
             }
         }
@@ -267,63 +296,64 @@ int intake_thread(void *o) {
     vex::motor* intake_motor_ptr = static_cast<HighStakesChassis*>(o)->intake_motor;
     while (1) {
         if (!base->intake_ring_fire) {
-            if (base->toggle_mogo && base->toggle_intake_pto) {
-                base->toggle_intake_pto = false;
-                move_motor(*intake_motor_ptr, -100);
-                vex::this_thread::sleep_for(200);
-                move_motor(*intake_motor_ptr, 100);
-                vex::this_thread::sleep_for(200);
+            if (base->lb_store_mode && base->intake_power > 0 && !base->intake_ring_queue.empty() && base->intake_ring_queue.back().get_pos() < base->intake_period - 200) {
+                move_motor(*intake_motor_ptr, 1);   
             }
-            if (!base->toggle_mogo && !base->toggle_intake_pto && !base->intake_ring_queue.empty() && base->intake_ring_queue.back().get_pos() > (base->intake_period) - 250) {
-                move_motor(*intake_motor_ptr, -100);
-                vex::this_thread::sleep_for(50);
-                base->toggle_intake_pto = true;
-                move_motor(*intake_motor_ptr, -100);
-                vex::this_thread::sleep_for(150);
-                move_motor(*intake_motor_ptr, 100);
-                vex::this_thread::sleep_for(200);
+            else if (base->lb_has_ring && base->get_lb_pos() < base->lb_store_height - 20) {
+                move_motor(*intake_motor_ptr, 1);
             }
             else {
                 move_motor(*intake_motor_ptr, base->intake_power);
             }
         }
-        else if (!base->toggle_intake_pto && !base->is_lb_load_height()) {
-            if (base->intake_ring_queue.empty()) {
-                base->intake_ring_fire = false;
-            }
-            else {
-                if (base->is_lb_load_height()) {
-                    while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 500) {
-                        move_motor(*intake_motor_ptr, 100);
-                        vex::this_thread::sleep_for(10);
-                    }
+        else {
+            if (base->is_lb_load_height()) {
+                printf("lb\n");
+                printf("lb_has_ring: %d\n", base->lb_has_ring);
+                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 350) {
                     move_motor(*intake_motor_ptr, 100);
-                    vex::this_thread::sleep_for(100);
+                    vex::this_thread::sleep_for(10);
+                }
+
+                move_motor(*intake_motor_ptr, 100);
+                vex::this_thread::sleep_for(100);
+                move_motor(*intake_motor_ptr, -100);
+                vex::this_thread::sleep_for(10);
+                move_motor(*intake_motor_ptr, 100);
+                vex::this_thread::sleep_for(50);
+
+                if (base->lb_distance->objectDistance(vex::distanceUnits::mm) < 150) {
+                    printf("true\n");
+                    base->lb_has_ring = true;
                     move_motor(*intake_motor_ptr, -10);
                     vex::this_thread::sleep_for(100);
-                } 
-                else if (base->intake_ring_queue.back().color != base->team_color) {
-                    while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 500) {
-                        move_motor(*intake_motor_ptr, 100);
-                        vex::this_thread::sleep_for(10);
-                    }
-
-                    move_motor(*intake_motor_ptr, -100);
-                    vex::this_thread::sleep_for(100);
-                    printf("pop\n");
                 }
-                else if (base->intake_ring_queue.back().color == base->team_color) {
-                    // score sequence
+                printf("lb_has_ring: %d after\n", base->lb_has_ring);
+
+                printf("done\n");
+            }
+            else if (base->intake_ring_queue.back().color != base->team_color) {
+                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 500) {
                     move_motor(*intake_motor_ptr, 100);
-                    vex::this_thread::sleep_for(450);
+                    vex::this_thread::sleep_for(10);
                 }
 
-                base->intake_ring_queue.pop_back();
-                base->intake_ring_fire = false;
-                
+                move_motor(*intake_motor_ptr, -100);
+                vex::this_thread::sleep_for(100);
+                printf("throw\n");
+            }
+            else if (base->intake_ring_queue.back().color == base->team_color) {
+                printf("score\n");
+                // score sequence
+                move_motor(*intake_motor_ptr, 100);
+                vex::this_thread::sleep_for(450);
             }
 
+            base->intake_ring_queue.pop_back();
+            base->intake_ring_fire = false;
+            
         }
+
         vex::this_thread::sleep_for(10);
     }
 }
@@ -425,6 +455,7 @@ int highstakes_control(void* o) {
     vex::rotation* intake_rotation_ptr = base->intake_rotation; // Use getter method
 
     // initialize
+    intake_hook_color_ptr->integrationTime(70);
     intake_hook_color_ptr->setLightPower(100);
     mogo_color_ptr->setLightPower(100);
     first_stage_color_ptr->setLightPower(100);
@@ -449,8 +480,8 @@ int highstakes_control(void* o) {
     #define OUTTAKE_BIND       controller_ptr->ButtonR2.pressing()  // Example mapping
     #define LB_RAISE_BIND      controller_ptr->ButtonL1.pressing() // Example mapping
     #define LB_LOWER_BIND      controller_ptr->ButtonL2.pressing() // Example mapping
-    #define RING_DOINKER_BIND  controller_ptr->ButtonX.pressing() // Example mapping - Added
-    #define GOAL_DOINKER_BIND  controller_ptr->ButtonY.pressing() // Example mapping - Added
+    #define RING_DOINKER_BIND  controller_ptr->ButtonY.pressing() // Example mapping - Added
+    #define GOAL_DOINKER_BIND  controller_ptr->ButtonRight.pressing() // Example mapping - Added
 
 
     while (true) {
@@ -459,8 +490,6 @@ int highstakes_control(void* o) {
         // Convert percent to voltage for steer method
         double left_voltage = (linear_power + turn_power) * 12.8;
         double right_voltage = (linear_power - turn_power) * 12.8;
-        // left_voltage *= 0.25;
-        // right_voltage *= 0.25;
 
         move_motor(leftmotor1, left_voltage);
         move_motor(leftmotor2, left_voltage);
