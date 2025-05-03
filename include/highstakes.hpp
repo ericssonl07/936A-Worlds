@@ -413,9 +413,9 @@ int pneumatics_thread(void* o) {
 
     while (true) {
         if (base->toggle_base_pto) {
-            base_pto_ptr->open();
-        } else {
             base_pto_ptr->close();
+        } else {
+            base_pto_ptr->open();
         }
 
         if (base->toggle_intake_pto) {
