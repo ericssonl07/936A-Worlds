@@ -98,6 +98,8 @@ int track(void* o) {
         double theta_mid = odometry -> rotation_value + d_theta * 0.5;
         double sine = sin(theta_mid);
         double cosine = cos(theta_mid);
+ 
+        // old
         double dx_global = dx_local * sine + dy_local * cosine;
         double dy_global = -dx_local * cosine + dy_local * sine;
 

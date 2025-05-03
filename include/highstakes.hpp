@@ -71,6 +71,7 @@ private:
     bool toggle_ring_doinker = false; // Added state for new pneumatic
     bool toggle_goal_doinker = false; // Added state for new pneumatic
     bool toggle_intake_pto = false;
+    bool toggle_intake_lift = false;
     double intake_power = 0.0;
 
     double lb_power = 0.0;
@@ -78,10 +79,10 @@ private:
     double lb_target_arm_height = 0.0;
     bool lb_has_ring = false;
 
-    const double lb_load_height = 100.0; // Load height for LB
+    const double lb_load_height = 90.0; // Load height for LB
     const double lb_descore1_height = 470.0; // Descore height for LB
     const double lb_descore2_height = 520.0; // Score height for LB
-    const double lb_store_height = 250.0; // Store height for LB
+    const double lb_store_height = 180.0; // Store height for LB
 
     bool lb_store_mode = false;
 
@@ -121,9 +122,14 @@ private:
     }
 
     bool is_lb_load_height() {
-        if (get_lb_pos() > lb_load_height - 20 && get_lb_pos() < lb_load_height + 20) {
+        printf("get_lb_pos(): %.5f\n", get_lb_pos());
+        printf("lb_load_height: %.5f\n", lb_load_height);
+        double lb_pos = get_lb_pos();
+        if (lb_pos > lb_load_height - 20.0 && lb_pos < lb_load_height + 20.0) {
+            printf("parameters %.5f, %.5f\n", lb_load_height - 20.0, lb_load_height + 20.0);
             return true;
         }
+        return false;
     }
 
 
@@ -310,7 +316,7 @@ int intake_thread(void *o) {
             if (base->is_lb_load_height()) {
                 printf("lb\n");
                 printf("lb_has_ring: %d\n", base->lb_has_ring);
-                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 350) {
+                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 450) {
                     move_motor(*intake_motor_ptr, 100);
                     vex::this_thread::sleep_for(10);
                 }
@@ -318,7 +324,7 @@ int intake_thread(void *o) {
                 move_motor(*intake_motor_ptr, 100);
                 vex::this_thread::sleep_for(100);
                 move_motor(*intake_motor_ptr, -100);
-                vex::this_thread::sleep_for(10);
+                vex::this_thread::sleep_for(50);
                 move_motor(*intake_motor_ptr, 100);
                 vex::this_thread::sleep_for(50);
 
@@ -400,6 +406,7 @@ int pneumatics_thread(void* o) {
     vex::pneumatics* hang_piston_ptr = base->hang_piston;
     vex::pneumatics* ring_doinker_ptr = base->ring_doinker; // Added
     vex::pneumatics* goal_doinker_ptr = base->goal_doinker; // Added
+    vex::pneumatics* intake_lift_ptr = base->intake_lift; // Added
     vex::pneumatics* intake_pto_ptr = base->intake_pto; // Added
     vex::optical* mogo_color_ptr = base->mogo_color; // Added for potential auto-clamp
     // vex::pneumatics* intake_pto_ptr = base->intake_pto; // Control this if needed
@@ -415,6 +422,12 @@ int pneumatics_thread(void* o) {
             intake_pto_ptr->open(); // Uncomment if needed
         } else {
             intake_pto_ptr->close(); // Uncomment if needed
+        }
+
+        if (base->toggle_intake_lift) {
+            intake_lift_ptr->open(); // Uncomment if needed
+        } else {
+            intake_lift_ptr->close(); // Uncomment if needed
         }
 
         // Add mogo color sensor logic here if needed to auto-trigger mogo piston
@@ -469,6 +482,7 @@ int highstakes_control(void* o) {
     bool prev_climb_state = false;
     bool prev_ring_doinker_state = false; // Added
     bool prev_goal_doinker_state = false; // Added
+    bool prev_intake_lift_state = false; // Added
 
     // Button mapping (adjust defines/variables as needed)
     #define DRIVE_AXIS_FORWARD controller_ptr->Axis3.position(vex::percentUnits::pct)
@@ -482,6 +496,7 @@ int highstakes_control(void* o) {
     #define LB_LOWER_BIND      controller_ptr->ButtonL2.pressing() // Example mapping
     #define RING_DOINKER_BIND  controller_ptr->ButtonY.pressing() // Example mapping - Added
     #define GOAL_DOINKER_BIND  controller_ptr->ButtonRight.pressing() // Example mapping - Added
+    #define INTAKE_LIFT_BIND    controller_ptr->ButtonX.pressing() // Example mapping - Added
 
 
     while (true) {
@@ -516,6 +531,12 @@ int highstakes_control(void* o) {
             base->toggle_hang_piston = !base->toggle_hang_piston;
         }
         prev_climb_state = current_climb_bind;
+
+        bool current_intake_lift_bind = INTAKE_LIFT_BIND;
+        if (current_intake_lift_bind != prev_intake_lift_state && !prev_intake_lift_state){ // Rising edge
+            base->toggle_intake_lift = !base->toggle_intake_lift;
+        }
+        prev_intake_lift_state = current_intake_lift_bind;
 
         // Added toggles for new pneumatics
         bool current_ring_doinker_bind = RING_DOINKER_BIND;

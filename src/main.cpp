@@ -162,7 +162,7 @@ int main() {
 		if (controller.ButtonA.pressing()) {
 			base.corner_reset(7.0);
 		}
-		printf("(%.5f, %.5f)\n", base.x(), base.y());
+		// printf("(%.5f, %.5f)\n", base.x(), base.y());
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
