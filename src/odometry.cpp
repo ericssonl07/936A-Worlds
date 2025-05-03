@@ -104,7 +104,7 @@ int track(void* o) {
         odometry -> x_position += dx_global;
         odometry -> y_position += dy_global;
         odometry -> rotation_value += d_theta;
-        vex::this_thread::sleep_for(std::chrono::milliseconds(50));
+        vex::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 

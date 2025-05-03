@@ -38,8 +38,8 @@ double lb_ratio = 12.0 / 36.0;
 double intake_ratio = 1.0;
 double max_radial_accel = 100.0;
 double base_width = 11.25;
-double left_offset = 0;
-double back_offset = 5.6;
+double left_offset = 1.34940945; // 0 (wtf??)
+double back_offset = 2.29724409; // 5.6 (wtf??)
 // 59.675mm
 #if BASE_TYPE == 0
 Motor lm1(vex::PORT10, vex::gearSetting::ratio6_1, true, external_ratio, wheel_radius);
@@ -105,59 +105,37 @@ HighStakesChassis base(&left, &right, &left_track, &back_track, &imu, &controlle
 #endif
 
 int autonomous() {
-    // 1) Reset and set pose
-    base.reset_position();
-    base.set_pose(0, 0, 0);
-
-    // // 2) Move forward 24 inches
-    // base.forward(24.0, 0.1);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    // // 3) Turn to absolute 90°
-    // base.turn_to(M_PI/2, 0.05);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    // // 4) Turn relative –90°
-    // base.turn(-M_PI/2, 0.05);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    // // 5) Timed forward (2 s at 6 V)
-    // base.forward_timer(2.0, 6.0, 0.1);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    // // 6) Timed steer (1.5 s at ±6 V)
-    // base.steer_timer(6.0, -6.0, 1.5);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    // // 7) Drift in place to 90°
-    // base.drift_in_place(12.0, M_PI / 2, 0.2);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    // // 8) Drift after moving 12″, bias 6 V to 90°
-    // base.drift_after_distance(24.0, 6.0, M_PI/2, 0.1, 5.0);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    // // 9) Follow a simple square path
-    // Path path({
-	// 	 {0, 0},
-	// 	 {48.0, 0},
-	// 	 {96.0, -48.0}},
-	// 	-1);
-    // base.follow_path(path, 1.0, 5.0);
-
-    // // 10) Corner‐reset with 5″ offset
-    // base.corner_reset(5.0);
-    // vex::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    // // 11) Stop and report final pose
-    // base.stop();
-    // double px = base.x();
-    // double py = base.y();
-    // double pr = base.rotation();
-    // brain.Screen.clearScreen();
-    // brain.Screen.printAt(1, 20, "Pose X: %.2f", px);
-    // brain.Screen.printAt(1, 40, "Pose Y: %.2f", py);
-    // brain.Screen.printAt(1, 60, "Rot (rad): %.2f", pr);
+	Path p1 = {
+		{
+			{24, 24},
+			{48, 48},
+			{72, 72},
+			{96, 96},
+			{72, 120},
+			{24, 96},
+			{24, 24}
+		}, -1
+	};
+	base.follow_path(p1, 1.0, 5.0); // tolerance 1 inch, lookahead 5 inches
+	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+	base.turn_to(M_PI / 4, 0.1, 12.0, 0.02, 1.0, 0.4);
+	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+	base.steer_timer(-6, -7, 2.0);
+	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+	base.corner_reset(7.0);
+	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+	Path p2 = {
+		{
+			{base.x(), base.y()},
+			{36, 36},
+			{72, 24}
+		}, -1
+	};
+	base.follow_path(p2, 1.0, 5.0); // tolerance 1 inch, lookahead 5 inches
+	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+	base.turn_to(M_PI, 0.1, 12.0, 0.02, 0.25, 0.1);
+	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
+	base.forward(48, 1.0, 12.0, 0.5, 0.5, 0.15);
     return 0;
 }
 
@@ -166,14 +144,13 @@ int control();
 int main() {
 	imu.calibrate();
 	vexDelay(3000);
+	base.set_pose(0, 0, 0);
 	// vex::task auton(autonomous);
 	// while (!controller.ButtonA.pressing()) {
 	// 	printf("(%.5f, %.5f)\n", base.x(), base.y());
 	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	// }
 	// auton.stop();
-
-	printf("\n\n\n========poop=========\n");
 
 	vex::task ladybrown_task(ladybrown_thread, &base);
 	vex::task intake_helper_task(intake_helper_thread, &base);
@@ -185,7 +162,7 @@ int main() {
 		if (controller.ButtonA.pressing()) {
 			base.corner_reset(7.0);
 		}
-		// printf("(%.5f, %.5f)\n", base.x(), base.y());
+		printf("(%.5f, %.5f)\n", base.x(), base.y());
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }
