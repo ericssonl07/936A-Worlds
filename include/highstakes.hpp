@@ -24,6 +24,11 @@ void move_motor(vex::motor m, int pct) {
 class HighStakesChassis: public Chassis {
     friend int main();
 private:
+    
+
+
+public:
+// old public
     struct Ring {
         HighStakesChassis* chassis;
         int  hooked_stage;
@@ -132,8 +137,7 @@ private:
         return false;
     }
 
-
-public:
+// old private
     HighStakesChassis(MotorGroup* left, MotorGroup* right, vex::rotation* forward_track, vex::rotation* side_track,
                       vex::inertial* imu, vex::controller* controller,
                       // High Stakes specific devices

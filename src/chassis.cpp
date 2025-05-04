@@ -128,7 +128,8 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
         double pos = dist();
         double output = forward_controller.calculate(pos);
         double progress = fabs(pos / distance);
-        double angle_filter = 1 / (1 + exp((progress - 0.85) * 50));
+        double angle_filter = 1 / (1 + exp((progress - 0.75) * 30));
+        // double angle_filter = 1 / (1 + exp((progress - 0.85) * 50));
         double relative_angle;
         if (distance > 0) {
             relative_angle = atan2(target_y - y(), target_x - x());

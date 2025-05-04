@@ -142,9 +142,21 @@ int autonomous() {
 int control();
 
 int main() {
+	vex::task ladybrown_task(ladybrown_thread, &base);
+	vex::task intake_helper_task(intake_helper_thread, &base);
+	vex::task intake_task(intake_thread, &base);
+	vex::task mogo_task(mogo_thread, &base);
+	vex::task pneumatics_task(pneumatics_thread, &base);
+	vex::task highstakes_control_task(highstakes_control, &base);
 	imu.calibrate();
 	vexDelay(3000);
 	base.set_pose(0, 0, 0);
+
+	base.lb_macro_mode = true;
+	base.lb_target_arm_height = base.lb_load_height; // Target low height (adjust as needed)
+	base.intake_power = 100;
+
+	base.forward(48, 1.0, 12.8, 0.5, 0.5, 0.15);
 	// vex::task auton(autonomous);
 	// while (!controller.ButtonA.pressing()) {
 	// 	printf("(%.5f, %.5f)\n", base.x(), base.y());
@@ -152,12 +164,8 @@ int main() {
 	// }
 	// auton.stop();
 
-	vex::task ladybrown_task(ladybrown_thread, &base);
-	vex::task intake_helper_task(intake_helper_thread, &base);
-	vex::task intake_task(intake_thread, &base);
-	vex::task mogo_task(mogo_thread, &base);
-	vex::task pneumatics_task(pneumatics_thread, &base);
-	vex::task highstakes_control_task(highstakes_control, &base);
+
+
 	while (true) {
 		if (controller.ButtonA.pressing()) {
 			base.corner_reset(7.0);
