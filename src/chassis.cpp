@@ -69,7 +69,7 @@ void Chassis::turn(double angle, double tolerance, double maximum, double minimu
     printf("Called turn... ");
     double target = rotation() + angle;
     double error0 = angle;
-    PID turn_controller(5.0, 0.3, 15.0, // adjust gains // 5 0.3 5
+    PID turn_controller(10.0, 0.3, 15.0, // adjust gains // 5 0.3 5
                         target, // target position
                         tolerance, // tolerance: allowed error
                         maximum, // max_value
@@ -128,8 +128,8 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
         double pos = dist();
         double output = forward_controller.calculate(pos);
         double progress = fabs(pos / distance);
-        double angle_filter = 1 / (1 + exp((progress - 0.75) * 30));
-        // double angle_filter = 1 / (1 + exp((progress - 0.85) * 50));
+        // double angle_filter = 1 / (1 + exp((progress - 0.75) * 30));
+        double angle_filter = 1 / (1 + exp((progress - 0.5) * 30)); // \frac{1}{1+e^{30\left(x-0.5\right)}} - logistic function
         double relative_angle;
         if (distance > 0) {
             relative_angle = atan2(target_y - y(), target_x - x());

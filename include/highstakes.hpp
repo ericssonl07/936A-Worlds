@@ -4,7 +4,6 @@
 #include <vex.h>
 #include <chassis.hpp>
 #include <pid.hpp> // Include PID header
-
 #include <deque>
 
 vex::brain brain;
@@ -93,8 +92,9 @@ public:
 
     int descore_state = 0; // For LB macro
     const double  intake_period = 19.0 * (360.0 / 6.0); // 19 chain links per hook //1140
-    const bool team_color = true; // 1 = red, 0 = blue
+    const bool team_color = 0; // 1 = red, 0 = blue
     bool intake_ring_fire = false;
+    int intake_ring_fire_count = 0;
     std::deque<Ring> intake_ring_queue;
 
     // PID controller for Ladybrown
@@ -343,7 +343,7 @@ int intake_thread(void *o) {
                 printf("done\n");
             }
             else if (base->intake_ring_queue.back().color != base->team_color) {
-                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 500) {
+                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 450) {
                     move_motor(*intake_motor_ptr, 100);
                     vex::this_thread::sleep_for(10);
                 }
@@ -358,7 +358,7 @@ int intake_thread(void *o) {
                 move_motor(*intake_motor_ptr, 100);
                 vex::this_thread::sleep_for(450);
             }
-
+            base->intake_ring_fire_count++;
             base->intake_ring_queue.pop_back();
             base->intake_ring_fire = false;
             

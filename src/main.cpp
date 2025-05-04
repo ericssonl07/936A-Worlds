@@ -104,38 +104,67 @@ HighStakesChassis base(&left, &right, &left_track, &back_track, &imu, &controlle
 	tracking_wheel_radius, external_ratio, max_radial_accel);
 #endif
 
+auto distance = [] (double x, double y, double x2, double y2) {
+	return sqrt(pow(x2 - x, 2) + pow(y2 - y, 2));
+};
+
+#define MACROMODE(height) do { \
+	base.lb_macro_mode = true; \
+	base.lb_target_arm_height = height; \
+} while (0);
+#define STOREOFF do { \
+	base.lb_macro_mode = false; \
+} while (0);
+#define MAKEFUNC(name, commands) void name() { \
+	commands \
+} \
+
+MAKEFUNC(activatedoinkerafterdelay, vex::this_thread::sleep_for(500); base.toggle_ring_doinker = true; printf("doinker activated\n"););
+MAKEFUNC(setloadmodeaftertworingsin, if (base.intake_ring_fire_count == 2) {MACROMODE(base.lb_load_height);});
+// started 4:55, deployed in 0:33, arrives 5:68 (roughly)
+
 int autonomous() {
-	Path p1 = {
-		{
-			{24, 24},
-			{48, 48},
-			{72, 72},
-			{96, 96},
-			{72, 120},
-			{24, 96},
-			{24, 24}
-		}, -1
-	};
-	base.follow_path(p1, 1.0, 5.0); // tolerance 1 inch, lookahead 5 inches
-	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-	base.turn_to(M_PI / 4, 0.1, 12.0, 0.02, 1.0, 0.4);
-	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-	base.steer_timer(-6, -7, 2.0);
-	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-	base.corner_reset(7.0);
-	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-	Path p2 = {
+	base.intake_power = 100;
+	vex::thread activatedoinkerafterdelaythread(activatedoinkerafterdelay);
+	base.forward(distance(123.73, 104.31, 78, 118)-5, 1.0, 12.8, 0.5, 0.5, 0.15);
+	Path back_into_mogo = {
 		{
 			{base.x(), base.y()},
-			{36, 36},
-			{72, 24}
+			{87.9, 111.9}, // {91.2, 116.7}
+			{96, 96}
 		}, -1
 	};
-	base.follow_path(p2, 1.0, 5.0); // tolerance 1 inch, lookahead 5 inches
-	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-	base.turn_to(M_PI, 0.1, 12.0, 0.02, 0.25, 0.1);
-	vex::this_thread::sleep_for(std::chrono::milliseconds(500));
-	base.forward(48, 1.0, 12.0, 0.5, 0.5, 0.15);
+	vex::this_thread::sleep_for(400);
+	base.intake_power = 0;
+	base.follow_path(back_into_mogo, 1.0, 5.0);
+	base.toggle_ring_doinker = false;
+	base.toggle_mogo = true;
+	base.intake_power = 100;
+	base.turn_to(M_PI / 2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.forward(distance(base.x(), base.y(), 96, 125) - 5, 1.0, 12.8, 0.5, 0.5, 0.15);
+	// base.steer_timer(12.0, 4.3, .9);
+	base.turn_to(atan2(144 - base.y(), 144 - base.x()) - 0.18, 0.1, 11, 1.5, 1.0, 0.4);
+	vex::this_thread::sleep_for(200);
+	// base.steer_timer(12.0, 12.0, 0.5);
+	base.steer_timer(9.0, 9.0, 3);
+	base.steer_timer(-6.0, -6.0, .8);
+
+	base.forward(-5, 1.0, 12.8, 0.5, 0.5, 0.15);
+	
+	
+	// Path curve_into_ring = {
+	// 	{
+	// 		{base.x(), base.y()},
+	// 		{96, 120}
+	// 	}, -1
+	// };
+	// printf("curve into ring path waypoints:\n");
+	// for (auto& p : curve_into_ring.points) {
+	// 	printf("(%.5f, %.5f)\n", p.x, p.y);
+	// }
+	// base.follow_path(curve_into_ring, 3.5, 5.0);
+	// double angle = atan2(144 - base.x(), 144 - base.y());
+	// base.turn_to(angle, 0.1, 10.0, 1.5, 1.0, 0.4);
     return 0;
 }
 
@@ -147,29 +176,31 @@ int main() {
 	vex::task intake_task(intake_thread, &base);
 	vex::task mogo_task(mogo_thread, &base);
 	vex::task pneumatics_task(pneumatics_thread, &base);
-	vex::task highstakes_control_task(highstakes_control, &base);
 	imu.calibrate();
-	vexDelay(3000);
-	base.set_pose(0, 0, 0);
-
-	base.lb_macro_mode = true;
-	base.lb_target_arm_height = base.lb_load_height; // Target low height (adjust as needed)
-	base.intake_power = 100;
-
-	base.forward(48, 1.0, 12.8, 0.5, 0.5, 0.15);
-	// vex::task auton(autonomous);
-	// while (!controller.ButtonA.pressing()) {
-	// 	printf("(%.5f, %.5f)\n", base.x(), base.y());
-	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
-	// }
-	// auton.stop();
+	printf("imu calibrating... ");
+	while (imu.isCalibrating()) {
+		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+	printf("done\n");
+	base.set_pose(123.01, 100.24, 2.79); // new (CAD)
 
 
+	// base.set_pose(95.68, 96.18, 2.122); // halfway through
+	while (!controller.ButtonLeft.pressing()) {
+		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+	vex::task auton(autonomous);
+	while (!controller.ButtonUp.pressing()) {
+		printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation());
+		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+	auton.stop();
 
+	vex::task highstakes_control_task(highstakes_control, &base);
 	while (true) {
-		if (controller.ButtonA.pressing()) {
-			base.corner_reset(7.0);
-		}
+		// if (controller.ButtonA.pressing()) {
+		// 	base.corner_reset(7.0);
+		// }
 		// printf("(%.5f, %.5f)\n", base.x(), base.y());
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
@@ -285,17 +316,3 @@ int control() {
 	}
 	return 0;
 }
-
-#if BASE_TYPE == 2 // Subsystem control for the Worlds Championship base
-int subsystems_control() {
-	while (true) {
-		if (controller.ButtonR1.pressing()) {
-			intake.spin(vex::fwd, 12.8, vex::voltageUnits::volt);
-		} else if (controller.ButtonR2.pressing()) {
-			intake.spin(vex::fwd, -12.8, vex::voltageUnits::volt);
-		} else {
-			intake.stop();
-		}
-	}
-}
-#endif
