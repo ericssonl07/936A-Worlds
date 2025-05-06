@@ -93,7 +93,7 @@ public:
 
     int descore_state = 0; // For LB macro
     const double  intake_period = 19.0 * (360.0 / 6.0); // 19 chain links per hook //1140
-    const bool team_color = 0; // 1 = red, 0 = blue
+    bool team_color = 0; // 1 = red, 0 = blue
     bool intake_ring_fire = false;
     int intake_ring_fire_count = 0;
     std::deque<Ring> intake_ring_queue;

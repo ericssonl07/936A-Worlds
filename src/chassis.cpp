@@ -28,7 +28,7 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
     const double min_voltage = 1.5;
     while (!pursuit.terminated(x(), y())) {
         double progress = pursuit.progress();
-        double voltage_limit = 4 / (1 + exp((progress - 0.75) * 20)) + 8.0; // \frac{4}{1+e^{20\left(x-0.75\right)}}+8- logistic function
+        double voltage_limit = 2 / (1 + exp((progress - 0.9) * 20)) + 10;
         auto [steering, curvature] = pursuit.get_relative_steering(x(), y(), rotation(), base_width, voltage_limit);
         auto [left_velocity, right_velocity] = steering;
         #define RESTRICT_VELOCITY // Uncomment this line to restrict the velocity

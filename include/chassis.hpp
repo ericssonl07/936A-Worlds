@@ -293,6 +293,9 @@ public:
      * @param minimum Minimum voltage for the motors (volts)
      * @param activation_ratio Activation ratio for the PID controller
      * @param integral_ratio Integral ratio for the PID controller
+     * @param p Proportional gain for the PID controller
+     * @param d Derivative gain for the PID controller
+     * @param i Integral gain for the PID controller
      * @details The forward method allows the robot to move forward by a specified distance using a PID controller.
      * The method takes into account the robot's current position and rotation, as well as the specified tolerance.
      * @attention

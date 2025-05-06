@@ -45,7 +45,7 @@ class Pursuit {
  * @privatesection
  */
 
-    friend int autonomous();
+    friend int blue_ringrush();
     
     friend class Chassis;
     
