@@ -124,6 +124,10 @@ MAKEFUNC(setloadmodeaftertworingsin, if (base.intake_ring_fire_count == 2) {MACR
 // started 4:55, deployed in 0:33, arrives 5:68 (roughly)
 
 int autonomous() {
+	double mp = 1.00;
+	double md = 0.22;
+	double mi = 3.0; 
+	base.lb_store_mode_override = true;
 	base.intake_power = 100;
 	vex::thread activatedoinkerafterdelaythread(activatedoinkerafterdelay);
 	base.forward(distance(123.73, 104.31, 78, 118)-5, 1.0, 12.8, 0.5, 0.5, 0.15);
@@ -134,23 +138,49 @@ int autonomous() {
 			{96, 96}
 		}, -1
 	};
-	vex::this_thread::sleep_for(400);
+	vex::this_thread::sleep_for(100);
 	base.intake_power = 0;
 	base.follow_path(back_into_mogo, 1.0, 5.0);
 	base.toggle_ring_doinker = false;
 	base.toggle_mogo = true;
 	base.intake_power = 100;
-	base.turn_to(M_PI / 2, 0.1, 11.0, 1.5, 1.0, 0.4);
-	base.forward(distance(base.x(), base.y(), 96, 125) - 5, 1.0, 12.8, 0.5, 0.5, 0.15);
+	base.turn_to(atan2(120 - base.y(), 100 - base.x()), 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.forward(distance(base.x(), base.y(), 96, 125) - 1, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
 	// base.steer_timer(12.0, 4.3, .9);
-	base.turn_to(atan2(144 - base.y(), 144 - base.x()) - 0.18, 0.1, 11, 1.5, 1.0, 0.4);
+	base.turn_to(atan2(144 - base.y(), 144 - base.x()), 0.1, 11, 1.5, 1.0, 0.4);
 	vex::this_thread::sleep_for(200);
 	// base.steer_timer(12.0, 12.0, 0.5);
-	base.steer_timer(9.0, 9.0, 3);
+	base.forward_timer(2, 9.0, 2);
+	// base.steer_timer(9.0, 9.0, 2);
+	base.forward(-5.5, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+	// base.forward_timer(1.0, -5, 0.5);
+	base.forward_timer(1.3, 8, 0.35);
+	base.forward(-5.5, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+	base.forward_timer(1.3, 8, 0.35);
+	base.corner_reset_forward(7.0);
 	base.steer_timer(-6.0, -6.0, .8);
 
-	base.forward(-5, 1.0, 12.8, 0.5, 0.5, 0.15);
-	
+	base.forward(-2, 1.0, 12.8, 0.5, 0.5, 0.2, mp, md, mi);
+	printf("executed\n");
+
+	printf("executing turn\n");
+	base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	printf("executed turn\n");
+
+	MACROMODE(base.lb_load_height);
+
+	base.forward(distance(base.x(), base.y(), 120, 72), 1.0, 12.8, 0.5, 0.5, 0.15, mp, 0.3, mi);
+
+
+	base.turn_to(0, 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.forward_timer(3, 8, 0.5);
+
+	base.forward(-8, .5, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+	STOREOFF;
+	base.lb_power = 100;
+	vex::this_thread::sleep_for(500);
+	base.lb_power = 0;
+
 	
 	// Path curve_into_ring = {
 	// 	{
@@ -165,6 +195,7 @@ int autonomous() {
 	// base.follow_path(curve_into_ring, 3.5, 5.0);
 	// double angle = atan2(144 - base.x(), 144 - base.y());
 	// base.turn_to(angle, 0.1, 10.0, 1.5, 1.0, 0.4);
+	base.lb_store_mode_override = false;
     return 0;
 }
 
@@ -185,21 +216,34 @@ int main() {
 	base.set_pose(123.01, 100.24, 2.79); // new (CAD)
 
 
-	// base.set_pose(95.68, 96.18, 2.122); // halfway through
 	while (!controller.ButtonLeft.pressing()) {
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	vex::task auton(autonomous);
 	while (!controller.ButtonUp.pressing()) {
-		printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation());
+		// printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation());
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	auton.stop();
 
+	// base.set_pose(0, 0, 0);
+
+	// double mp = 1.00;
+	// double md = 0.22;
+	// double mi = 3.0; 
+
+	// base.forward(20, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
+	// base.turn_to(M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	// base.forward(10, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
+	// base.forward(-10, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
+	// base.turn_to(0, 0.1, 11.0, 1.5, 1.0, 0.4);
+	// base.forward(-20, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
+	
+
 	vex::task highstakes_control_task(highstakes_control, &base);
 	while (true) {
-		// if (controller.ButtonA.pressing()) {
-		// 	base.corner_reset(7.0);
+		// if (controller.ButtonLeft.pressing()) {
+		// 	base.corner_reset_forward(7.0);
 		// }
 		// printf("(%.5f, %.5f)\n", base.x(), base.y());
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));

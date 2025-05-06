@@ -82,6 +82,7 @@ public:
     bool lb_macro_mode = false;
     double lb_target_arm_height = 0.0;
     bool lb_has_ring = false;
+    bool lb_store_mode_override = false;
 
     const double lb_load_height = 90.0; // Load height for LB
     const double lb_descore1_height = 470.0; // Descore height for LB
@@ -254,7 +255,7 @@ int intake_helper_thread(void* o) {
         // push rings into queue
         if (base->first_stage_ring != nullptr &&
             intake_hook_color_ptr->isNearObject() &&
-            base->get_intake_hook_pos() > 450 && base->get_intake_hook_pos() < 800) {
+            base->get_intake_hook_pos() > 450 && base->get_intake_hook_pos() < 850) {
             
             // new ring in the hook stage
             HighStakesChassis::Ring ring(base);
@@ -306,10 +307,10 @@ int intake_thread(void *o) {
     vex::motor* intake_motor_ptr = static_cast<HighStakesChassis*>(o)->intake_motor;
     while (1) {
         if (!base->intake_ring_fire) {
-            if (base->lb_store_mode && base->intake_power > 0 && !base->intake_ring_queue.empty() && base->intake_ring_queue.back().get_pos() < base->intake_period - 200) {
+            if (!base->lb_store_mode_override && base->lb_store_mode && base->intake_power > 0 && !base->intake_ring_queue.empty() && base->intake_ring_queue.back().get_pos() < base->intake_period - 200) {
                 move_motor(*intake_motor_ptr, 1);   
             }
-            else if (base->lb_has_ring && base->get_lb_pos() < base->lb_store_height - 20) {
+            else if (!base->lb_store_mode_override && base->lb_has_ring && base->get_lb_pos() < base->lb_store_height - 20) {
                 move_motor(*intake_motor_ptr, 1);
             }
             else {

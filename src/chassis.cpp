@@ -65,11 +65,11 @@ void Chassis::turn_to(double angle, double tolerance, double maximum, double min
     turn(error0, tolerance, maximum, minimum, activation_ratio, integral_ratio);
 }
 
-void Chassis::turn(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+void Chassis::turn(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio, double p, double i, double d) {
     printf("Called turn... ");
     double target = rotation() + angle;
     double error0 = angle;
-    PID turn_controller(10.0, 0.3, 15.0, // adjust gains // 5 0.3 5
+    PID turn_controller(p, i, d, // adjust gains // 5 0.3 5
                         target, // target position
                         tolerance, // tolerance: allowed error
                         maximum, // max_value
@@ -91,7 +91,7 @@ void Chassis::turn(double angle, double tolerance, double maximum, double minimu
     printf("done!\n");
 }
 
-void Chassis::forward(double distance, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+void Chassis::forward(double distance, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio, double p, double i, double d) {
     double target_x = x() + distance * cos(rotation());
     double target_y = y() + distance * sin(rotation());
     printf("Calling forward from (%.5f, %.5f, %.5f) -> (%.5f, %.5f)... \n", x(), y(), rotation(), target_x, target_y);
@@ -103,7 +103,7 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
         double raw_distance = sqrt(dx * dx + dy * dy);
         return distance < 0 ? -raw_distance : raw_distance;
     };
-    PID forward_controller(0.45, 0.04, 2.0, // adjust gains
+    PID forward_controller(p, i, d, // adjust gains
                            distance, // target position
                            tolerance, // tolerance: allowed error
                            maximum, // max_value
@@ -297,6 +297,33 @@ void Chassis::corner_reset(double lengthwise_offset) {
     double midpt_y = (pt1_y + pt2_y) * 0.5;
     double dx = lengthwise_offset * cosine;
     double dy = lengthwise_offset * sine;
+    double new_x = midpt_x + dx;
+    double new_y = midpt_y + dy;
+    set_pose(new_x, new_y, rotation());
+    printf("Corner reset to (%.5f, %.5f, %.5f)\n", new_x, new_y, rotation() / M_PI * 180.0);
+}
+
+void Chassis::corner_reset_forward(double lengthwise_offset) {
+    double sine = sin(rotation());
+    double cosine = cos(rotation());
+    double corner_x, corner_y;
+    
+    // Corner selection for front-facing (inverted from back-facing logic)
+    corner_x = cosine < 0 ? 0 : 144;
+    corner_y = sine < 0 ? 0 : 144;
+    
+    // Calculate points along the walls with negated signs
+    double pt1_x = corner_x - base_width * sine;
+    double pt1_y = corner_y;
+    double pt2_x = corner_x;
+    double pt2_y = corner_y - base_width * cosine;
+    double midpt_x = (pt1_x + pt2_x) * 0.5;
+    double midpt_y = (pt1_y + pt2_y) * 0.5;
+    
+    // Offset in opposite direction of heading
+    double dx = -lengthwise_offset * cosine;
+    double dy = -lengthwise_offset * sine;
+    
     double new_x = midpt_x + dx;
     double new_y = midpt_y + dy;
     set_pose(new_x, new_y, rotation());

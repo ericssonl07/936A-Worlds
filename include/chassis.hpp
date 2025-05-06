@@ -282,7 +282,7 @@ public:
      * 
      * The turn method does NOT account for coterminality, and it turns to a relative angle.
      */
-    void turn(double angle, double tolerance, double maximum = 12.0, double minimum = 0.02, double activation_ratio = 0.3, double integral_ratio = 0.2); // Tested on Friday, April 11th, 2025
+    void turn(double angle, double tolerance, double maximum = 12.0, double minimum = 0.02, double activation_ratio = 0.3, double integral_ratio = 0.2, double p = 10.0, double i = 0.3, double d = 15.0);
 
     /**
      * @public forward
@@ -302,7 +302,7 @@ public:
      * voltage until the robot is within 12*0.3=3.6 inches of the target distance. Similarly, if the integral_ratio is
      * set to 0.2, the controller will disable integration until the robot is within 12*0.2=2.4 inches of the target distance.
      */
-    void forward(double distance, double tolerance = 0.05, double maximum = 12.0, double minimum = 0.02, double activation_ratio = 0.3, double integral_ratio = 0.2); // Tested on Friday, April 11th, 2025
+    void forward(double distance, double tolerance = 0.05, double maximum = 12.0, double minimum = 0.02, double activation_ratio = 0.3, double integral_ratio = 0.2, double p = 0.50, double d = 0.08, double i = 3.0); // Tested on Friday, April 11th, 2025
 
     /**
      * @public forward_timer
@@ -390,6 +390,17 @@ public:
      * @details The reset_position method allows the robot to reset its position to (0, 0, 0).
      * This is useful for resetting the robot's position during autonomous.
      */
+
+    void corner_reset_forward(double lengthwise_offset);
+
+    /**
+     * @public corner_reset_forward
+     * @brief Reset the robot's position to a corner with specified offset- robot must be physically aligned with the corner in a triangle.
+     * @param lengthwise_offset Offset from the line of the back of the robot to the tracking center. What is the perpendicular distance
+     * from the tracking center to the hypotenuse of the triangle formed by the aligning robot?
+     * @details The corner_reset_forward method allows the robot to reset its position to a corner with a specified offset.
+     */
+
     void reset_position();
 
     /**
