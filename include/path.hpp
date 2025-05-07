@@ -451,6 +451,8 @@ class Path {
     friend class Chassis;
 
     friend int blue_ringrush();
+    friend int red_ringrush();
+    friend int auton_testing();
 
     /**
      * @private points

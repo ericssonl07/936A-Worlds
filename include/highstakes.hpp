@@ -255,7 +255,7 @@ int intake_helper_thread(void* o) {
         // push rings into queue
         if (base->first_stage_ring != nullptr &&
             intake_hook_color_ptr->isNearObject() &&
-            base->get_intake_hook_pos() > 450 && base->get_intake_hook_pos() < 850) {
+            base->get_intake_hook_pos() > 500 && base->get_intake_hook_pos() < 850) {
             
             // new ring in the hook stage
             HighStakesChassis::Ring ring(base);
@@ -268,7 +268,7 @@ int intake_helper_thread(void* o) {
             printf("pushed ring\n");
             printf("color: %d\n", base->first_stage_ring->color);
             printf("hooked stage: %d\n", base->first_stage_ring->hooked_stage);
-            printf("hooked pos: %f\n", base->first_stage_ring->get_pos());
+            printf("hooked pos: %f\n", base->get_intake_hook_pos());
 
             // remove the ring from the first stage intake
             delete base->first_stage_ring;
@@ -286,7 +286,7 @@ int intake_helper_thread(void* o) {
                 base->intake_ring_fire = true;
             }
         }
-
+//.             
         // Debugging output
         brain.Screen.printAt(1, 20, "intake pos: %.2f, intake stage: %.2f", base->get_intake_pos(), base->get_intake_stage());
         brain.Screen.printAt(1, 40, "intake_hook_pos: %.2f", base->get_intake_hook_pos());
@@ -321,13 +321,13 @@ int intake_thread(void *o) {
             if (base->is_lb_load_height()) {
                 printf("lb\n");
                 printf("lb_has_ring: %d\n", base->lb_has_ring);
-                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 450) {
+                while (base->intake_ring_queue.back().get_pos() < (base->intake_period) + 500) {
                     move_motor(*intake_motor_ptr, 100);
                     vex::this_thread::sleep_for(10);
                 }
 
                 move_motor(*intake_motor_ptr, 100);
-                vex::this_thread::sleep_for(100);
+                vex::this_thread::sleep_for(200);
                 move_motor(*intake_motor_ptr, -100);
                 vex::this_thread::sleep_for(50);
                 move_motor(*intake_motor_ptr, 100);
@@ -488,11 +488,13 @@ int highstakes_control(void* o) {
     bool prev_ring_doinker_state = false; // Added
     bool prev_goal_doinker_state = false; // Added
     bool prev_intake_lift_state = false; // Added
+    double previous_pto_toggle = -1e9;
 
     // Button mapping (adjust defines/variables as needed)
     #define DRIVE_AXIS_FORWARD controller_ptr->Axis3.position(vex::percentUnits::pct)
     #define DRIVE_AXIS_TURN    controller_ptr->Axis1.position(vex::percentUnits::pct)
-    #define PTO_BIND           controller_ptr->ButtonB.pressing() // Example mapping
+    #define PTO_BIND1          controller_ptr->ButtonB.pressing() // Example mapping
+    #define PTO_BIND2          controller_ptr->ButtonDown.pressing()
     #define MOGO_BIND          controller_ptr->ButtonDown.pressing() // Example mapping
     #define HANG_BIND          controller_ptr->ButtonA.pressing() // Example mapping
     #define INTAKE_BIND        controller_ptr->ButtonR1.pressing() // Example mapping
@@ -519,11 +521,10 @@ int highstakes_control(void* o) {
         move_motor(rightmotor3, right_voltage);
 
         // Pneumatics Toggles
-        bool current_pto_bind = PTO_BIND;
-        if (current_pto_bind != prev_base_pto_state && !prev_base_pto_state){ // Rising edge
-            base->toggle_base_pto = !base->toggle_base_pto;
+        if (PTO_BIND1 && PTO_BIND2){ // Rising edge
+            base->toggle_base_pto = true;
+            base->toggle_intake_lift = true;
         }
-        prev_base_pto_state = current_pto_bind;
 
         bool current_mogo_bind = MOGO_BIND;
         if (current_mogo_bind != prev_mogo_state && !prev_mogo_state){ // Rising edge
@@ -619,5 +620,4 @@ int highstakes_control(void* o) {
     return 0; // Should not be reached
 }
 
-
-#endif // #ifndef HIGHSTAKES_HPP
+#endif // #ifndef HIGHSTAKES_CHASSIS_HPP

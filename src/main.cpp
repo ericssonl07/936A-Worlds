@@ -36,7 +36,7 @@ double tracking_wheel_radius = 2.75 / 2;
 double external_ratio = 48.0 / 72.0;
 double lb_ratio = 12.0 / 36.0;
 double intake_ratio = 1.0;
-double max_radial_accel = 100.0;
+double max_radial_accel = 100.0; // PURE PURSUIT SMOOTHNESS/EFFICIENCY TRADEOFF: TUNE THIS
 double base_width = 11.25;
 double left_offset = 1.34940945;
 double back_offset = 2.29724409;
@@ -156,7 +156,7 @@ int blue_ringrush() {
 	base.corner_reset_forward(7.0);
 	base.steer_timer(-6.0, -6.0, .8);
 	base.forward(-2, 1.0, 12.8, 0.5, 0.5, 0.2, mp, md, mi);
-	base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.turn_to(atan2(72 - base.y(), 120 - base.x()), 0.1, 11.0, 1.5, 1.0, 0.4); // base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
 	MACROMODE(base.lb_load_height);
 
 	base.forward(distance(base.x(), base.y(), 120, 72), 1.0, 12.8, 0.5, 0.5, 0.15, mp, 0.3, mi);
@@ -198,7 +198,7 @@ int red_ringrush() {
     vex::this_thread::sleep_for(100);
     base.intake_power = 0;
     base.follow_path(back_into_mogo, 1.0, 5.0);
-    base.toggle_ring_doinker = false;
+    base.toggle_goal_doinker = false;
     base.toggle_mogo = true;
     base.intake_power = 100;
     base.turn_to(
@@ -223,7 +223,8 @@ int red_ringrush() {
     base.corner_reset_forward(7.0);
     base.steer_timer(-6.0, -6.0, 0.8);
     base.forward(-2, 1.0, 12.8, 0.5, 0.5, 0.2, mp, md, mi);
-    base.turn_to(-M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+    // base.turn_to(-M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.turn_to(atan2(144 - 120 - base.x(), 72 - base.y()), 0.1, 11.0, 1.5, 1.0, 0.4);
     MACROMODE(base.lb_load_height);
     base.forward(
         distance(base.x(), base.y(), 144 - 120, 72),
@@ -243,51 +244,67 @@ int red_ringrush() {
 
 int control();
 
+enum autontype {
+	redringrush,
+	blueringrush
+};
+autontype type = redringrush;
+
+// int autonomous() {
+void autonomous() {
+	if (type == redringrush) {
+		printf("Running red\n");
+		red_ringrush();
+	} else {
+		printf("Running blue\n");
+		blue_ringrush();
+	}
+	// return 0;
+}
+
+void competitioncontrol() {
+	highstakes_control(&base);
+}
+
 int main() {
 	vex::task ladybrown_task(ladybrown_thread, &base);
 	vex::task intake_helper_task(intake_helper_thread, &base);
 	vex::task intake_task(intake_thread, &base);
 	vex::task mogo_task(mogo_thread, &base);
 	vex::task pneumatics_task(pneumatics_thread, &base);
+	vex::competition competition;
 	imu.calibrate();
 	printf("imu calibrating... ");
 	while (imu.isCalibrating()) {
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	printf("done\n");
-	// base.set_pose(123.01, 100.24, 2.79);
-
-
+	bool buttonr = false, lastbuttonr = false;
 	while (!controller.ButtonLeft.pressing()) {
+		controller.Screen.clearScreen();
+		controller.Screen.setCursor(1,1);
+		controller.Screen.print(type == redringrush ? "redringrush\n" : "blueringrush\n");
+		printf(type == redringrush ? "redringrush\n" : "blueringrush\n");
+		buttonr = controller.ButtonRight.pressing();
+		if (buttonr && !lastbuttonr) {
+			if (type == redringrush) type = blueringrush;
+			else type = redringrush;
+		}
+		lastbuttonr = buttonr;
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
-	vex::task auton(blue_ringrush);
-	while (!controller.ButtonUp.pressing()) {
-		// printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation());
-		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-	auton.stop();
+	// vex::task auton(autonomous);
+	competition.autonomous(autonomous);
+	competition.drivercontrol(competitioncontrol);
 
-	// base.set_pose(0, 0, 0);
-
-	// double mp = 1.00;
-	// double md = 0.22;
-	// double mi = 3.0; 
-
-	// base.forward(20, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
-	// base.turn_to(M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
-	// base.forward(10, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
-	// base.forward(-10, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
-	// base.turn_to(0, 0.1, 11.0, 1.5, 1.0, 0.4);
-	// base.forward(-20, 0.2, 12.8, 0.5, 0.3, 0.15, mp, md, mi);
-	
-
-	vex::task highstakes_control_task(highstakes_control, &base);
+	// while (!controller.ButtonUp.pressing()) {
+	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	// }
+	// auton.stop();
+	// vex::task highstakes_control_task(highstakes_control, &base);
+	// vex::task movement_task(control);
 	while (true) {
-		// if (controller.ButtonLeft.pressing()) {
-		// 	base.corner_reset_forward(7.0);
-		// }
-		// printf("(%.5f, %.5f)\n", base.x(), base.y());
+		// printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation() / M_PI * 180);
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 }

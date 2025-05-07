@@ -87,7 +87,8 @@ std::pair<std::pair<double, double>, double> Pursuit::get_relative_steering(doub
     if (cos(alpha) < 0) {
         scale = -scale;
     }
-
+    printf("(%.5f, %.5f)\n", target.x, target.y);
+    // printf("Pursuit: (%.3f, %.3f) -> (%.3f, %.3f) with alpha=%.3f, steering=(%.3f, %.3f)\n", from_x, from_y, target.x, target.y, alpha, left_steering * scale, right_steering * scale);
     return std::make_pair(std::make_pair(left_steering * scale, right_steering * scale), fabs(r_c));
 }
 

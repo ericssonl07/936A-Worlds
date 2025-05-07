@@ -25,7 +25,10 @@ void Chassis::set_pose(double x, double y, double rotation) {
 void Chassis::follow_path(Path path, double tolerance, double lookahead) {
     printf("Called follow_path... ");
     Pursuit pursuit(path, lookahead);
-    const double min_voltage = 1.5;
+    const double min_voltage = 0.5; // PURE PURSUIT SMOOTHNESS/EFFICIENCY TRADEOFF: TUNE THIS
+    // auto initial_target = pursuit.get_target(x(), y());
+    // double angle = atan2(initial_target.y - y(), initial_target.x - x());
+    // turn_to(angle, 0.5, 6.0, 1.5, M_PI / angle * 0.25, M_PI / angle * 0.1);
     while (!pursuit.terminated(x(), y())) {
         double progress = pursuit.progress();
         double voltage_limit = 2 / (1 + exp((progress - 0.9) * 20)) + 10;
@@ -50,7 +53,6 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
             right_velocity *= correction_ratio;
         }
         #endif
-
         steer(left_velocity, right_velocity);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
@@ -435,12 +437,12 @@ int arcade_control(void* o) {
     MotorGroup& left = *(chassis -> left);
     MotorGroup& right = *(chassis -> right);
     while (true) {
-        double linear = controller.Axis3.position();
-        double angular = controller.Axis1.position();
-        double left_power = (linear + angular) * 0.12;
-        double right_power = (linear - angular) * 0.12;
-        left.spin(left_power, vex::volt);
-        right.spin(right_power, vex::volt);
+        double linear_power = controller.Axis3.position(vex::percentUnits::pct);
+        double turn_power = controller.Axis1.position(vex::percentUnits::pct);
+        double left_voltage = (linear_power + turn_power) * 12.8 * 128;
+        double right_voltage = (linear_power - turn_power) * 12.8 * 128;
+        left.spin(left_voltage, vex::voltageUnits::mV);
+        right.spin(right_voltage, vex::voltageUnits::mV);
         vex::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     return 0;
