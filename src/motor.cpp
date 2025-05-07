@@ -106,8 +106,8 @@ void Motor::reset_position() {
     device -> resetPosition();
 }
 
-void Motor::stop() {
-    device -> stop(vex::brakeType::brake);
+void Motor::stop(vex::brakeType brake_mode) {
+    device -> stop(brake_mode);
 }
 
 bool Motor::connected() {

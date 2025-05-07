@@ -56,29 +56,28 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
         steer(left_velocity, right_velocity);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    left -> stop();
-    right -> stop();
+    left -> stop(vex::brakeType::coast);
+    right -> stop(vex::brakeType::coast);
     printf("done!\n");
 }
 
-void Chassis::turn_to(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio) {
+void Chassis::turn_to(double angle, double tolerance, double maximum, double minimum, double activation_threshold, double integral_threshold, double derivative_threshold) {
     double target = floor((rotation() - angle + M_PI) / (M_PI * 2)) * M_PI * 2 + angle;
     double error0 = target - rotation();
-    turn(error0, tolerance, maximum, minimum, activation_ratio, integral_ratio);
+    turn(error0, tolerance, maximum, minimum, activation_threshold, integral_threshold, derivative_threshold);
 }
 
-void Chassis::turn(double angle, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio, double p, double i, double d) {
+void Chassis::turn(double angle, double tolerance, double maximum, double minimum, double activation_threshold, double integral_threshold, double derivative_threshold, double p, double i, double d) {
     printf("Called turn... ");
     double target = rotation() + angle;
-    double error0 = angle;
     PID turn_controller(p, i, d, // adjust gains // 5 0.3 5
                         target, // target position
                         tolerance, // tolerance: allowed error
                         maximum, // max_value
                         minimum, // min_value
-                        fabs(error0 * activation_ratio), // activation_threshold
-                        fabs(error0 * integral_ratio), // integration_threshold
-                        0.05, // derivative_threshold
+                        activation_threshold,
+                        integral_threshold,
+                        derivative_threshold, // derivative_threshold
                         50.0, // max_integral
                         0.999); // gamma
     while (!turn_controller.arrived()) {
@@ -88,12 +87,12 @@ void Chassis::turn(double angle, double tolerance, double maximum, double minimu
         right -> spin(output, vex::voltageUnits::volt);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    left -> stop();
-    right -> stop();
+    left -> stop(vex::brakeType::coast);
+    right -> stop(vex::brakeType::coast);
     printf("done!\n");
 }
 
-void Chassis::forward(double distance, double tolerance, double maximum, double minimum, double activation_ratio, double integral_ratio, double p, double i, double d) {
+void Chassis::forward(double distance, double tolerance, double maximum, double minimum, double activation_threshold, double integral_threshold, double derivative_threshold, double p, double i, double d) {
     double target_x = x() + distance * cos(rotation());
     double target_y = y() + distance * sin(rotation());
     printf("Calling forward from (%.5f, %.5f, %.5f) -> (%.5f, %.5f)... \n", x(), y(), rotation(), target_x, target_y);
@@ -102,7 +101,7 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
     auto dist = [this, distance, original_x, original_y] () {
         double dx = x() - original_x;
         double dy = y() - original_y;
-        double raw_distance = sqrt(dx * dx + dy * dy);
+        double raw_distance = sqrt(dx * dx + dy * dy);        
         return distance < 0 ? -raw_distance : raw_distance;
     };
     PID forward_controller(p, i, d, // adjust gains
@@ -110,9 +109,9 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
                            tolerance, // tolerance: allowed error
                            maximum, // max_value
                            minimum, // min_value
-                           fabs(distance * activation_ratio), // activation_threshold
-                           fabs(distance * integral_ratio), // integration_threshold
-                           0.05, // derivative_threshold
+                           activation_threshold,
+                           integral_threshold,
+                           derivative_threshold, // derivative_threshold
                            50.0, // max_integral
                            0.999); // gamma
     double target = rotation();
@@ -122,7 +121,7 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
                            6.0, // max_value
                            0.0, // min_value
                            1e9, // activation_threshold
-                           1.0, // integration_threshold
+                           M_PI / 10, // integration_threshold
                            0.0, // derivative_threshold
                            10.0, // max_integral
                            0.999); // gamma
@@ -152,8 +151,8 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
         right -> spin(right_voltage, vex::voltageUnits::volt);
         vex::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    left -> stop();
-    right -> stop();
+    left -> stop(vex::brakeType::coast);
+    right -> stop(vex::brakeType::coast);
     printf("done!\n");
 }
 

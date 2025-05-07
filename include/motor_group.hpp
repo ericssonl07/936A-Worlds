@@ -245,9 +245,9 @@ public:
      * @note This method stops all motors in the group immediately and locks them.
      * It uses vex::brakeType::brake to stop the motors.
      */
-    void stop() {
+    void stop(vex::brakeType brake_mode = vex::brakeType::coast) {
         for (Motor* motor: motors) {
-            motor -> stop();
+            motor -> stop(brake_mode);
         }
     }
 

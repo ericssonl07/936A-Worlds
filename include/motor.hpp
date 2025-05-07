@@ -228,7 +228,7 @@ public:
      * @public stop
      * @brief Stop the motor
      */
-    void stop();
+    void stop(vex::brakeType brake_mode = vex::brakeType::coast);
 
     /**
      * @public connected

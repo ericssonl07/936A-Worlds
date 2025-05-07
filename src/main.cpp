@@ -130,7 +130,7 @@ int blue_ringrush() {
 	base.lb_store_mode_override = true;
 	base.intake_power = 100;
 	vex::thread activatedoinkerafterdelaythread(activaterightdoinkerafterdelay);
-	base.forward(distance(123.73, 104.31, 78, 118)-5, 1.0, 12.8, 0.5, 0.5, 0.15);
+	base.forward(distance(123.73, 104.31, 78, 118)-5, 1.0, 12.8, 24, 6, 0.2);
 	Path back_into_mogo = {
 		{
 			{base.x(), base.y()},
@@ -144,28 +144,29 @@ int blue_ringrush() {
 	base.toggle_ring_doinker = false;
 	base.toggle_mogo = true;
 	base.intake_power = 100;
-	base.turn_to(atan2(120 - base.y(), 100 - base.x()), 0.1, 11.0, 1.5, 1.0, 0.4);
-	base.forward(distance(base.x(), base.y(), 96, 125) - 1, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
-	base.turn_to(atan2(144 - base.y(), 144 - base.x()), 0.1, 11, 1.5, 1.0, 0.4);
+	base.turn_to(atan2(120 - base.y(), 100 - base.x()), 0.1, 11.0, 1.5);
+	base.forward(distance(base.x(), base.y(), 96, 125) - 1, 1.0, 12.8, 0.5, 24, 6, 0.2, mp, md, mi);
+	base.turn_to(atan2(144 - base.y(), 144 - base.x()), 0.1, 11, 1.5);
 	vex::this_thread::sleep_for(200);
 	base.forward_timer(2, 9.0, 2);
-	base.forward(-5.5, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+	base.forward(-5.5, 1.0, 12.8, 24, 6, 0.2, mp, md, mi);
 	base.forward_timer(1.3, 8, 0.35);
-	base.forward(-5.5, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+	base.forward(-5.5, 1.0, 12.8, 24, 6, 0.2, mp, md, mi);
 	base.forward_timer(1.3, 8, 0.35);
 	base.corner_reset_forward(7.0);
 	base.steer_timer(-6.0, -6.0, .8);
-	base.forward(-2, 1.0, 12.8, 0.5, 0.5, 0.2, mp, md, mi);
-	base.turn_to(atan2(72 - base.y(), 120 - base.x()), 0.1, 11.0, 1.5, 1.0, 0.4); // base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.forward(-2, 1.0, 12.8, 0.5, 24, 6, 0.2, mp, md, mi);
+	
+	base.turn_to(atan2(72 - base.y(), 120 - base.x()), 0.1, 11.0, 1.5); // base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
 	MACROMODE(base.lb_load_height);
 
-	base.forward(distance(base.x(), base.y(), 120, 72), 1.0, 12.8, 0.5, 0.5, 0.15, mp, 0.3, mi);
+	base.forward(distance(base.x(), base.y(), 120, 72), 1.0, 12.8, 24, 6, 0.2, mp, 0.3, mi);
 
 
-	base.turn_to(0, 0.1, 11.0, 1.5, 1.0, 0.4);
+	base.turn_to(0, 0.1, 11.0, 1.5);
 	base.forward_timer(3, 8, 0.5);
 
-	base.forward(-8, .5, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+	base.forward(-8, .5, 12.8, 0.5, 24, 6, 0.2, mp, md, mi);
 	STOREOFF;
 	base.lb_power = 100;
 	vex::this_thread::sleep_for(500);
@@ -175,6 +176,7 @@ int blue_ringrush() {
 }
 
 int red_ringrush() {
+	printf("Running red ringrush\n");
 	base.set_pose(144 - 123.01, 100.24, M_PI - 2.79);
     base.team_color = 1; // red (0 = blue, 1 = red)
     double mp = 1.00;    // p constant
@@ -185,7 +187,7 @@ int red_ringrush() {
     vex::thread activatedoinkerafterdelaythread(activateleftdoinkerafterdelay);
     base.forward(
         distance(144 - 123.73, 104.31, 144 - 78, 118) - 5,
-        1.0, 12.8, 0.5, 0.5, 0.15
+        1.0, 12.8, 0.5/*, 0.5, 0.15*/
     );
     Path back_into_mogo = {
         {
@@ -203,28 +205,29 @@ int red_ringrush() {
     base.intake_power = 100;
     base.turn_to(
         atan2(120 - base.y(), (144 - 100) - base.x()),
-        0.1, 11.0, 1.5, 1.0, 0.4
+        0.1, 11.0, 1.5/*, 1.0, 0.4*/
     );
     base.forward(
         distance(base.x(), base.y(), 144 - 96, 125) - 1,
-        1.0, 12.8, 0.5, 0.5, 0.15,
+        1.0, 12.8, 24, 6, 0.2,
         mp, md, mi
     );
     base.turn_to(
         atan2(144 - base.y(), (144 - 144) - base.x()),  // atan2(144 - y, -x)
-        0.1, 11.0, 1.5, 1.0, 0.4
+        0.1, 11.0, 1.5/*, 1.0, 0.4*/
     );
     vex::this_thread::sleep_for(200);
     base.forward_timer(2, 9.0, 2);
-    base.forward(-5.5, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+    base.forward(-5.5, 1.0, 12.8, 24, 6, 0.2, mp, md, mi);
     base.forward_timer(1.3, 8, 0.35);
-    base.forward(-5.5, 1.0, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+    base.forward(-5.5, 1.0, 12.8, 24, 6, 0.2, mp, md, mi);
     base.forward_timer(1.3, 8, 0.35);
     base.corner_reset_forward(7.0);
     base.steer_timer(-6.0, -6.0, 0.8);
     base.forward(-2, 1.0, 12.8, 0.5, 0.5, 0.2, mp, md, mi);
     // base.turn_to(-M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
-	base.turn_to(atan2(144 - 120 - base.x(), 72 - base.y()), 0.1, 11.0, 1.5, 1.0, 0.4);
+	
+	base.turn_to(atan2(72 - base.y(), 144 - 120 - base.x()), 0.1, 11.0, 1.5, 1.0, 0.4);
     MACROMODE(base.lb_load_height);
     base.forward(
         distance(base.x(), base.y(), 144 - 120, 72),
@@ -233,7 +236,7 @@ int red_ringrush() {
     );
     base.turn_to(M_PI, 0.1, 11.0, 1.5, 1.0, 0.4);
     base.forward_timer(3, 8, 0.5);
-    base.forward(-8, 0.5, 12.8, 0.5, 0.5, 0.15, mp, md, mi);
+    base.forward(-8, 0.5, 12.8, 24, 6, 0.2, mp, md, mi);
     STOREOFF;
     base.lb_power = 100;
     vex::this_thread::sleep_for(500);
@@ -250,8 +253,8 @@ enum autontype {
 };
 autontype type = redringrush;
 
-// int autonomous() {
-void autonomous() {
+int autonomous() {
+// void autonomous() {
 	if (type == redringrush) {
 		printf("Running red\n");
 		red_ringrush();
@@ -259,7 +262,7 @@ void autonomous() {
 		printf("Running blue\n");
 		blue_ringrush();
 	}
-	// return 0;
+	return 0;
 }
 
 void competitioncontrol() {
@@ -293,16 +296,15 @@ int main() {
 		lastbuttonr = buttonr;
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
-	// vex::task auton(autonomous);
-	competition.autonomous(autonomous);
-	competition.drivercontrol(competitioncontrol);
-
-	// while (!controller.ButtonUp.pressing()) {
-	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
-	// }
-	// auton.stop();
-	// vex::task highstakes_control_task(highstakes_control, &base);
-	// vex::task movement_task(control);
+	// competition.autonomous(autonomous);
+	// competition.drivercontrol(competitioncontrol);
+	vex::task auton(autonomous);
+	while (!controller.ButtonUp.pressing()) {
+		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+	auton.stop();
+	vex::task highstakes_control_task(highstakes_control, &base);
+	vex::task movement_task(control);
 	while (true) {
 		// printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation() / M_PI * 180);
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));

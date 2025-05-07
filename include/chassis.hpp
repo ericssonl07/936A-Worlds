@@ -260,7 +260,7 @@ public:
      * 
      * The turn_to method accounts for coterminality, and it turns to an absolute angle.
      */
-    void turn_to(double angle, double tolerance, double maximum = 12.0, double minimum = 0.02, double activation_threshold = M_PI / 4, double integral_threshold = M_PI / 10); // Tested on Friday, April 11th, 2025
+    void turn_to(double angle, double tolerance, double maximum = 12.0, double minimum = 0.02, double activation_threshold = M_PI / 4, double integral_threshold = M_PI / 10, double derivative_threshold = M_PI / 200); // Tested on Friday, April 11th, 2025
 
     /**
      * @public turn
@@ -282,7 +282,7 @@ public:
      * 
      * The turn method does NOT account for coterminality, and it turns to a relative angle.
      */
-    void turn(double angle, double tolerance, double maximum = 12.0, double minimum = 0.02, double activation_threshold = M_PI / 4, double integral_threshold = M_PI / 10, double p = 10.0, double i = 0.3, double d = 15.0);
+    void turn(double angle, double tolerance, double maximum = 12.0, double minimum = 0.02, double activation_threshold = M_PI / 4, double integral_threshold = M_PI / 10, double derivative_threshold = M_PI / 200, double p = 10.0, double i = 0.3, double d = 15.0);
 
     /**
      * @public forward
@@ -305,7 +305,7 @@ public:
      * voltage until the robot is within 12*0.3=3.6 inches of the target distance. Similarly, if the integral_ratio is
      * set to 0.2, the controller will disable integration until the robot is within 12*0.2=2.4 inches of the target distance.
      */
-    void forward(double distance, double tolerance = 0.05, double maximum = 12.0, double minimum = 0.02, double activation_ratio = 0.3, double integral_ratio = 0.2, double p = 0.50, double d = 0.08, double i = 3.0); // Tested on Friday, April 11th, 2025
+    void forward(double distance, double tolerance = 0.05, double maximum = 12.0, double minimum = 0.02, double activation_threshold = 24.0, double integral_threshold = 6.0, double derivative_threshold = 0.2, double p = 0.50, double d = 0.08, double i = 3.0); // Tested on Friday, April 11th, 2025
 
     /**
      * @public forward_timer
