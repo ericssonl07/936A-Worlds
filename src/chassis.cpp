@@ -25,7 +25,7 @@ void Chassis::set_pose(double x, double y, double rotation) {
 void Chassis::follow_path(Path path, double tolerance, double lookahead) {
     printf("Called follow_path... ");
     Pursuit pursuit(path, lookahead);
-    const double min_voltage = 0.5; // PURE PURSUIT SMOOTHNESS/EFFICIENCY TRADEOFF: TUNE THIS
+    const double min_voltage = 1.5; // PURE PURSUIT SMOOTHNESS/EFFICIENCY TRADEOFF: TUNE THIS
     // auto initial_target = pursuit.get_target(x(), y());
     // double angle = atan2(initial_target.y - y(), initial_target.x - x());
     // turn_to(angle, 0.5, 6.0, 1.5, M_PI / angle * 0.25, M_PI / angle * 0.1);

@@ -179,6 +179,7 @@ public:
 };
 
 int ladybrown_thread(void* o) {
+    printf("lb_thread running\n");
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::motor* lb_motor1_ptr = base->lb_motor1; // Get pointer for direct use
     vex::motor* lb_motor2_ptr = base->lb_motor2; // Get pointer for direct use
@@ -238,6 +239,7 @@ int ladybrown_thread(void* o) {
 }
 
 int intake_helper_thread(void* o) {
+    printf("inhelper_thread running\n");
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::motor* intake_motor_ptr = base->intake_motor;
     vex::optical* intake_hook_color_ptr = base->intake_hook_color;
@@ -303,6 +305,7 @@ int intake_helper_thread(void* o) {
 }
 
 int intake_thread(void *o) {
+    printf("intake_thread running\n");
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::motor* intake_motor_ptr = static_cast<HighStakesChassis*>(o)->intake_motor;
     while (1) {
@@ -370,6 +373,7 @@ int intake_thread(void *o) {
 }
 
 int mogo_thread(void* o) {
+    printf("mogo_thread running\n");
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::pneumatics* mogo_piston_ptr = base->mogo_piston;
     vex::optical* mogo_color_ptr = base->mogo_color; // Added for mogo detection
@@ -391,8 +395,10 @@ int mogo_thread(void* o) {
         } 
 
         if (base->toggle_mogo) {
+            // printf("mogo activated\n");
             mogo_piston_ptr->open();
         } else {
+            // printf("mogo closed\n");
             mogo_piston_ptr->close();
         }
 
@@ -405,6 +411,7 @@ int mogo_thread(void* o) {
 
 // Separate thread for pneumatics as they were mixed in original threads
 int pneumatics_thread(void* o) {
+    printf("penumatics thread running\n");
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::pneumatics* base_pto_ptr = base->base_pto;
     vex::pneumatics* mogo_piston_ptr = base->mogo_piston;
@@ -465,6 +472,7 @@ int pneumatics_thread(void* o) {
 
 
 int highstakes_control(void* o) {
+    printf("control running\n");
     HighStakesChassis* base = static_cast<HighStakesChassis*>(o);
     vex::controller* controller_ptr = base->controller; // Use getter method
     vex::optical* intake_hook_color_ptr = base->intake_hook_color; // Use getter method

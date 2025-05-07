@@ -253,8 +253,8 @@ enum autontype {
 };
 autontype type = redringrush;
 
-int autonomous() {
-// void autonomous() {
+// int autonomous() {
+void autonomous() {
 	if (type == redringrush) {
 		printf("Running red\n");
 		red_ringrush();
@@ -262,11 +262,12 @@ int autonomous() {
 		printf("Running blue\n");
 		blue_ringrush();
 	}
-	return 0;
+	// return 0;
 }
 
 void competitioncontrol() {
-	highstakes_control(&base);
+	vex::task highstakes_control_task(highstakes_control, &base);
+	while (true) {vex::this_thread::sleep_for(std::chrono::milliseconds(100));}
 }
 
 int main() {
@@ -296,15 +297,15 @@ int main() {
 		lastbuttonr = buttonr;
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
-	// competition.autonomous(autonomous);
-	// competition.drivercontrol(competitioncontrol);
-	vex::task auton(autonomous);
-	while (!controller.ButtonUp.pressing()) {
-		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
-	auton.stop();
-	vex::task highstakes_control_task(highstakes_control, &base);
-	vex::task movement_task(control);
+	competition.autonomous(autonomous);
+	competition.drivercontrol(competitioncontrol);
+	// vex::task auton(autonomous);
+	// while (!controller.ButtonUp.pressing()) {
+	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	// }
+	// auton.stop();
+	
+	// vex::task movement_task(control);
 	while (true) {
 		// printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation() / M_PI * 180);
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
