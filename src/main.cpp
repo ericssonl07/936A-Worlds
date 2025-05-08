@@ -18,6 +18,9 @@
 #include <chrono>
 #include <highstakes.hpp>
 
+#define DEFAULT_FORWARD_PARAMS 1.0, 12.0, 3.5, 24.0, 12.0, 0.2, 0.9, 0.08, 5.0
+#define DEFAULT_TURN_PARAMS 0.05, 12.0, 3.5, M_PI / 2, M_PI / 4, M_PI / 100, 8.0, 0.45, 35.0
+
 // enum Bases {
 // 	HKTechChallenge,
 // 	Tier3HangPrototype,
@@ -157,21 +160,21 @@ int blue_ringrush() {
 	base.steer_timer(-6.0, -6.0, .8);
 	base.forward(-2, 1.0, 12.8, 0.5, 24, 6, 0.2, mp, md, mi);
 	
-	base.turn_to(atan2(72 - base.y(), 120 - base.x()), 0.1, 11.0, 1.5); // base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
-	MACROMODE(base.lb_load_height);
+	base.turn_to(atan2(72 - base.y(), 96 - base.x()), 0.1, 11.0, 1.5); // base.turn_to(3*M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
+	MACROMODE(base.lb_descore2_height);
 
-	base.forward(distance(base.x(), base.y(), 120, 72), 1.0, 12.8, 24, 6, 0.2, mp, 0.3, mi);
+	base.forward(distance(base.x(), base.y(), 96, 72) - 5, 1.0, 12.8, 24, 6, 0.2, mp, 0.3, mi);
 
 
-	base.turn_to(0, 0.1, 11.0, 1.5);
-	base.forward_timer(3, 8, 0.5);
+	// base.turn_to(0, 0.1, 11.0, 1.5);
+	// base.forward_timer(3, 8, 0.5);
 
-	base.forward(-8, .5, 12.8, 0.5, 24, 6, 0.2, mp, md, mi);
-	STOREOFF;
-	base.lb_power = 100;
-	vex::this_thread::sleep_for(500);
-	base.lb_power = 0;
-	base.lb_store_mode_override = false;
+	// base.forward(-8, .5, 12.8, 0.5, 24, 6, 0.2, mp, md, mi);
+	// STOREOFF;
+	// base.lb_power = 100;
+	// vex::this_thread::sleep_for(500);
+	// base.lb_power = 0;
+	// base.lb_store_mode_override = false;
     return 0;
 }
 
@@ -222,7 +225,7 @@ int red_ringrush() {
     base.forward_timer(1.3, 8, 0.35);
     base.forward(-5.5, 1.0, 12.8, 24, 6, 0.2, mp, md, mi);
     base.forward_timer(1.3, 8, 0.35);
-    base.corner_reset_forward(7.0);
+    // base.corner_reset_forward(7.0);
     base.steer_timer(-6.0, -6.0, 0.8);
     base.forward(-2, 1.0, 12.8, 0.5, 0.5, 0.2, mp, md, mi);
     // base.turn_to(-M_PI/2, 0.1, 11.0, 1.5, 1.0, 0.4);
@@ -266,8 +269,29 @@ void autonomous() {
 }
 
 void competitioncontrol() {
-	vex::task highstakes_control_task(highstakes_control, &base);
-	while (true) {vex::this_thread::sleep_for(std::chrono::milliseconds(100));}
+	highstakes_control(&base);
+}
+
+int testing_auton() {
+	// #define DEFAULT_FORWARD_PARAMS 1.0, 12.0, 3.5, 24.0, 8.0, 0.2, 0.9, 0.08, 4.0
+	// #define DEFAULT_TURN_PARAMS 0.05, 12.0, 3.5, M_PI / 2, M_PI / 4, M_PI / 100, 5.0, 0.25, 25.0
+	base.set_pose(0, 0, 0);
+	// FORWARD FUNCTION- THE LAST SET OF PARAMETERS ARE TESTED FOR MULTIPLE DISTANCES (±6, ±12, ±24, ±48, ±72) and work well
+	// Testing time with 4 back-and-forths of 24 and -24 inches
+	// base.forward(24, 1.0, 12.0, 3.5, 24.0, 8.0, 0.2, 0.6, 0.08, 4.0); // initial stable version: 8.6 seconds
+	// base.forward(24, 1.0, 12.0, 3.5, 24.0, 12.0, 0.2, 0.6, 0.08, 5.0); // changing integral threshold from 8 to 12 and d from 4 to 5: 8.4 seconds
+	// base.forward(24, 1.0, 12.0, 3.5, 24.0, 8.0, 0.2, 0.7, 0.08, 4.0); // changing kp from 0.6 to 0.7: 8 seconds
+	// base.forward(24, 1.0, 12.0, 3.5, 24.0, 8.0, 0.2, 0.9, 0.08, 4.0); // changing kp from 0.7 to 0.9: 7.5 seconds, but more jerky
+
+	// TURN FUNCTION
+	// Testing time with 4 back-and-forths of 180 and -180 degrees (relative- from 0 to M_PI and back is one iteration)
+	// base.turn_to(M_PI, 0.05, 12.0, 3.5, M_PI / 2, M_PI / 5, M_PI / 100, 5.0, 0.15, 25.0); // initial stable version: 6.44 seconds
+	// base.turn_to(M_PI, 0.05, 12.0, 3.5, M_PI / 2, M_PI / 4, M_PI / 100, 5.0, 0.15, 25.0); // changing integral threshold from pi/5 to pi/4: 6.11 seconds
+	// base.turn_to(M_PI, 0.05, 12.0, 3.5, M_PI / 2, M_PI / 4, M_PI / 100, 5.0, 0.25, 25.0); // changing ki from 0.15 to 0.25: 5.98 seconds
+
+	base.forward(24, 1.0, 12.0, 3.5, 24.0, 12.0, 0.2, 0.9, 0.08, 5.0); // forward params
+	base.turn_to(M_PI, 0.05, 12.0, 3.5, M_PI / 2, M_PI / 4, M_PI / 100, 8.0, 0.45, 35.0); // turn params 6.7 seconds
+	return 0;
 }
 
 int main() {
@@ -283,22 +307,29 @@ int main() {
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	printf("done\n");
-	bool buttonr = false, lastbuttonr = false;
-	while (!controller.ButtonLeft.pressing()) {
-		controller.Screen.clearScreen();
-		controller.Screen.setCursor(1,1);
-		controller.Screen.print(type == redringrush ? "redringrush\n" : "blueringrush\n");
-		printf(type == redringrush ? "redringrush\n" : "blueringrush\n");
-		buttonr = controller.ButtonRight.pressing();
-		if (buttonr && !lastbuttonr) {
-			if (type == redringrush) type = blueringrush;
-			else type = redringrush;
-		}
-		lastbuttonr = buttonr;
+	// bool buttonr = false, lastbuttonr = false;
+	// while (!controller.ButtonLeft.pressing()) {
+	// 	controller.Screen.clearScreen();
+	// 	controller.Screen.setCursor(1,1);
+	// 	controller.Screen.print(type == redringrush ? "redringrush\n" : "blueringrush\n");
+	// 	printf(type == redringrush ? "redringrush\n" : "blueringrush\n");
+	// 	buttonr = controller.ButtonRight.pressing();
+	// 	if (buttonr && !lastbuttonr) {
+	// 		if (type == redringrush) type = blueringrush;
+	// 		else type = redringrush;
+	// 	}
+	// 	lastbuttonr = buttonr;
+	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
+	// }
+	// competition.autonomous(autonomous);
+	// competition.drivercontrol(competitioncontrol);
+
+	vex::task testing_auton_task(testing_auton);
+	while (!controller.ButtonUp.pressing()) {
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
-	competition.autonomous(autonomous);
-	competition.drivercontrol(competitioncontrol);
+	testing_auton_task.stop();
+
 	// vex::task auton(autonomous);
 	// while (!controller.ButtonUp.pressing()) {
 	// 	vex::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -306,6 +337,7 @@ int main() {
 	// auton.stop();
 	
 	// vex::task movement_task(control);
+	vex::task control_task(highstakes_control, &base);
 	while (true) {
 		// printf("(%.5f, %.5f, %.5f)\n", base.x(), base.y(), base.rotation() / M_PI * 180);
 		vex::this_thread::sleep_for(std::chrono::milliseconds(100));

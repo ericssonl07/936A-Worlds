@@ -61,10 +61,10 @@ void Chassis::follow_path(Path path, double tolerance, double lookahead) {
     printf("done!\n");
 }
 
-void Chassis::turn_to(double angle, double tolerance, double maximum, double minimum, double activation_threshold, double integral_threshold, double derivative_threshold) {
+void Chassis::turn_to(double angle, double tolerance, double maximum, double minimum, double activation_threshold, double integral_threshold, double derivative_threshold, double p, double i, double d) {
     double target = floor((rotation() - angle + M_PI) / (M_PI * 2)) * M_PI * 2 + angle;
     double error0 = target - rotation();
-    turn(error0, tolerance, maximum, minimum, activation_threshold, integral_threshold, derivative_threshold);
+    turn(error0, tolerance, maximum, minimum, activation_threshold, integral_threshold, derivative_threshold, p, i, d);
 }
 
 void Chassis::turn(double angle, double tolerance, double maximum, double minimum, double activation_threshold, double integral_threshold, double derivative_threshold, double p, double i, double d) {
@@ -114,9 +114,8 @@ void Chassis::forward(double distance, double tolerance, double maximum, double 
                            derivative_threshold, // derivative_threshold
                            50.0, // max_integral
                            0.999); // gamma
-    double target = rotation();
     PID angular_controller(15.0, 0.9, 45.0,
-                           target, // target position
+                           rotation(), // target position
                            0.0, // tolerance: allowed error
                            6.0, // max_value
                            0.0, // min_value
